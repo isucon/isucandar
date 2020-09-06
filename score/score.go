@@ -44,23 +44,16 @@ func (s *Score) add(tag ScoreTag) {
 }
 
 func (s *Score) collect(ctx context.Context) {
-	defer s.wg.Done()
 	s.wg.Add(1)
+	defer s.wg.Done()
 
-	for {
-		select {
-		case tag, ok := <-s.queue:
-			if !ok {
-				return
-			}
-			s.add(tag)
-		case <-ctx.Done():
-			// Context による終了ではキューを閉じない
-			s.closer.Do(func() {
-				close(s.queue)
-			})
-			return // コンテキストが終了したので離脱
-		}
+	go func() {
+		<-ctx.Done()
+		s.closer.Do(func() { close(s.queue) })
+	}()
+
+	for tag := range s.queue {
+		s.add(tag)
 	}
 }
 
@@ -69,10 +62,8 @@ func (s *Score) Set(tag ScoreTag, mag int64) {
 }
 
 func (s *Score) Add(tag ScoreTag) {
-	defer func() {
-		// catch error of "send on closed channel"
-		recover()
-	}()
+	// catch error of "send on closed channel"
+	defer func() { recover() }()
 	s.queue <- tag
 }
 
@@ -81,9 +72,7 @@ func (s *Score) Wait() {
 }
 
 func (s *Score) Done() {
-	s.closer.Do(func() {
-		close(s.queue)
-	})
+	s.closer.Do(func() { close(s.queue) })
 	s.Wait()
 }
 
