@@ -1,5 +1,7 @@
 # Isucandar
 
+![test](https://github.com/rosylilly/isucandar/workflows/test/badge.svg)
+
 Utility packages for [ISUCON](http://isucon.net/) benchmarker.
 
 ## Packages
