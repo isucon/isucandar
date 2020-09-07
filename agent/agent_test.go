@@ -13,10 +13,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func newHTTPServer() *httptest.Server {
+	_, file, _, _ := runtime.Caller(1)
+	fs := http.FileServer(http.Dir(filepath.Join(filepath.Dir(file), "..", "example")))
+
 	r := httprouter.New()
 	r.GET("/dump", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		dump, err := httputil.DumpRequest(r, true)
@@ -77,6 +82,8 @@ func newHTTPServer() *httptest.Server {
 	r.GET("/308redirect", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		http.Redirect(w, r, "/308", http.StatusPermanentRedirect)
 	})
+
+	r.NotFound = fs
 
 	return httptest.NewServer(r)
 }
@@ -215,4 +222,53 @@ func TestDeflateResponse(t *testing.T) {
 	if bytes.Compare(body, []byte("test it")) != 0 {
 		t.Fatalf("%s missmatch %s", body, "test it")
 	}
+}
+
+func TestCacheControl(t *testing.T) {
+	srv := newHTTPServer()
+	defer srv.Close()
+
+	agent, err := NewAgent()
+	if err != nil {
+		t.Fatal(err)
+	}
+	agent.BaseURL = srv.URL
+
+	req, err := agent.Get("/dot.gif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := agent.Do(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err := httputil.DumpResponse(res, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%s", body)
+
+	// Second request
+
+	req, err = agent.Get("/dot.gif")
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err = agent.Do(context.Background(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != 304 {
+		t.Fatalf("missmatch status code: %d", res.StatusCode)
+	}
+
+	body, err = httputil.DumpResponse(res, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Logf("%s", body)
 }

@@ -49,15 +49,17 @@ func init() {
 	DefaultTransport = transport
 }
 
+type AgentOption func(*Agent) error
+
 type Agent struct {
 	Name          string
 	BaseURL       string
 	DefaultAccept string
-	Jar           http.CookieJar
-	httpClient    *http.Client
+	CacheStore    CacheStore
+	HttpClient    *http.Client
 }
 
-func NewAgent(opts ...func(*Agent) error) (*Agent, error) {
+func NewAgent(opts ...AgentOption) (*Agent, error) {
 	jar, err := cookiejar.New(&cookiejar.Options{})
 	if err != nil {
 		return nil, err
@@ -67,8 +69,8 @@ func NewAgent(opts ...func(*Agent) error) (*Agent, error) {
 		Name:          DefaultName,
 		BaseURL:       "",
 		DefaultAccept: DefaultAccept,
-		Jar:           jar,
-		httpClient: &http.Client{
+		CacheStore:    NewCacheStore(),
+		HttpClient: &http.Client{
 			CheckRedirect: useLastResponse,
 			Transport:     DefaultTransport,
 			Jar:           jar,
@@ -95,14 +97,38 @@ func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, erro
 		req.Header.Set("Accept", a.DefaultAccept)
 	}
 
-	res, err := a.httpClient.Do(req)
+	var cache *Cache
+	if a.CacheStore != nil {
+		cache = a.CacheStore.Get(req)
+	}
+	if cache != nil {
+		cache.apply(req)
+	}
+
+	var res *http.Response
+	var err error
+
+	if cache != nil && !cache.requiresRevalidate(req) {
+		res = cache.restoreResponse()
+	} else {
+		res, err = a.HttpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+
+		res, err = decompress(res)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	cache, err = newCache(res, cache)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err = decompress(res)
-	if err != nil {
-		return nil, err
+	if cache != nil && a.CacheStore != nil {
+		a.CacheStore.Put(req, cache)
 	}
 
 	return res, nil
