@@ -6,9 +6,9 @@ import (
 	"testing"
 )
 
-func TestSet(t *testing.T) {
+func TestErrors(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	set := NewSet(ctx)
+	set := NewErrors(ctx)
 	defer cancel()
 
 	for i := 0; i < 100; i++ {
@@ -23,9 +23,9 @@ func TestSet(t *testing.T) {
 	}
 }
 
-func TestSetClosed(t *testing.T) {
+func TestErrorsClosed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	set := NewSet(ctx)
+	set := NewErrors(ctx)
 
 	set.Add(fmt.Errorf("test"))
 	set.Add(fmt.Errorf("test"))
@@ -40,4 +40,7 @@ func TestSetClosed(t *testing.T) {
 	if table["unknown"] != 3 {
 		t.Errorf("missmatch unknown count: %d", table["unknown"])
 	}
+
+	messages := set.Messages()
+	t.Logf("%+v", messages)
 }

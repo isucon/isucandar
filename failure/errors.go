@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type Set struct {
+type Errors struct {
 	wg     sync.WaitGroup
 	mu     sync.RWMutex
 	closer sync.Once
@@ -13,8 +13,8 @@ type Set struct {
 	queue  chan error
 }
 
-func NewSet(ctx context.Context) *Set {
-	set := &Set{
+func NewErrors(ctx context.Context) *Errors {
+	set := &Errors{
 		wg:     sync.WaitGroup{},
 		mu:     sync.RWMutex{},
 		closer: sync.Once{},
@@ -27,7 +27,7 @@ func NewSet(ctx context.Context) *Set {
 	return set
 }
 
-func (s *Set) collect(ctx context.Context) {
+func (s *Errors) collect(ctx context.Context) {
 	s.wg.Add(1)
 	defer s.wg.Done()
 
@@ -43,21 +43,38 @@ func (s *Set) collect(ctx context.Context) {
 	}
 }
 
-func (s *Set) Add(err error) {
+func (s *Errors) Add(err error) {
 	defer func() { recover() }()
 	s.queue <- err
 }
 
-func (s *Set) Wait() {
+func (s *Errors) Wait() {
 	s.wg.Wait()
 }
 
-func (s *Set) Done() {
+func (s *Errors) Done() {
 	s.closer.Do(func() { close(s.queue) })
 	s.Wait()
 }
 
-func (s *Set) Count() map[string]int64 {
+func (s *Errors) Messages() map[string][]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	table := make(map[string][]string)
+	for _, err := range s.errors {
+		code := GetErrorCode(err)
+		if _, ok := table[code]; ok {
+			table[code] = append(table[code], err.Error())
+		} else {
+			table[code] = []string{err.Error()}
+		}
+	}
+
+	return table
+}
+
+func (s *Errors) Count() map[string]int64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
