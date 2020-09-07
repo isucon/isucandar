@@ -35,6 +35,7 @@ func init() {
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
 		Dial:                  dialer.Dial,
+		DialContext:           dialer.DialContext,
 		TLSClientConfig:       DefaultTLSConfig,
 		DisableCompression:    true,
 		MaxIdleConns:          0,
