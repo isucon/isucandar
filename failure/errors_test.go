@@ -3,6 +3,7 @@ package failure
 import (
 	"context"
 	"fmt"
+	"sync"
 	"testing"
 )
 
@@ -43,4 +44,38 @@ func TestErrorsClosed(t *testing.T) {
 
 	messages := set.Messages()
 	t.Logf("%+v", messages)
+}
+
+func TestErrorsHook(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	set := NewErrors(ctx)
+	defer cancel()
+
+	cnt := 0
+	mu := sync.Mutex{}
+	set.Hook(func(err error) {
+		mu.Lock()
+		defer mu.Unlock()
+
+		if GetErrorCode(err) == "unknown" {
+			cnt++
+		}
+	})
+
+	for i := 0; i < 10; i++ {
+		set.Add(fmt.Errorf("unknown error"))
+	}
+
+	set.Done()
+
+	table := set.Count()
+	if table["unknown"] != 10 {
+		t.Errorf("missmatch unknown count: %d", table["unknown"])
+	}
+
+	mu.Lock()
+	if cnt != 10 {
+		t.Errorf("missmatch unknown hook count: %d", cnt)
+	}
+	mu.Unlock()
 }

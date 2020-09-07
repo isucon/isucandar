@@ -5,12 +5,15 @@ import (
 	"sync"
 )
 
+type ErrorsHook func(error)
+
 type Errors struct {
 	wg     sync.WaitGroup
 	mu     sync.RWMutex
 	closer sync.Once
 	errors []error
 	queue  chan error
+	hook   ErrorsHook
 }
 
 func NewErrors(ctx context.Context) *Errors {
@@ -20,6 +23,7 @@ func NewErrors(ctx context.Context) *Errors {
 		closer: sync.Once{},
 		errors: make([]error, 0, 0),
 		queue:  make(chan error),
+		hook:   func(err error) {},
 	}
 
 	go set.collect(ctx)
@@ -33,13 +37,15 @@ func (s *Errors) collect(ctx context.Context) {
 
 	go func() {
 		<-ctx.Done()
-		s.closer.Do(func() { close(s.queue) })
+		s.Close()
 	}()
 
 	for err := range s.queue {
 		s.mu.Lock()
 		s.errors = append(s.errors, err)
 		s.mu.Unlock()
+
+		go s.hook(err)
 	}
 }
 
@@ -48,12 +54,25 @@ func (s *Errors) Add(err error) {
 	s.queue <- err
 }
 
+func (s *Errors) Hook(hook ErrorsHook) {
+	oldHook := s.hook
+	s.hook = func(err error) {
+		defer oldHook(err)
+
+		hook(err)
+	}
+}
+
 func (s *Errors) Wait() {
 	s.wg.Wait()
 }
 
-func (s *Errors) Done() {
+func (s *Errors) Close() {
 	s.closer.Do(func() { close(s.queue) })
+}
+
+func (s *Errors) Done() {
+	s.Close()
 	s.Wait()
 }
 
