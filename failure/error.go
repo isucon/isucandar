@@ -1,8 +1,10 @@
 package failure
 
 import (
+	"context"
 	"fmt"
 	"golang.org/x/xerrors"
+	"net"
 )
 
 type Error struct {
@@ -17,10 +19,29 @@ func NewError(code Code, err error) *Error {
 		return NewError(code, wrapped.err)
 	}
 
+	var nerr net.Error
+	if ok := As(err, &nerr); ok {
+		switch true {
+		case nerr.Timeout():
+			code = TimeoutErrorCode
+		case nerr.Temporary():
+			code = TemporaryErrorCode
+		default:
+		}
+	}
+
+	if ok := Is(err, context.Canceled); ok {
+		code = CanceledErrorCode
+	}
+
+	if ok := Is(err, context.DeadlineExceeded); ok {
+		code = TimeoutErrorCode
+	}
+
 	return &Error{
 		Code:  code,
 		err:   err,
-		frame: xerrors.Caller(1),
+		frame: xerrors.Caller(2),
 	}
 }
 

@@ -20,5 +20,8 @@ func GetErrorCode(err error) string {
 }
 
 const (
-	UnknownErrorCode StringCode = "unknown"
+	UnknownErrorCode   StringCode = "unknown"
+	CanceledErrorCode  StringCode = "canceled"
+	TimeoutErrorCode   StringCode = "timeout"
+	TemporaryErrorCode StringCode = "temporary"
 )

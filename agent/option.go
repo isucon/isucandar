@@ -1,5 +1,9 @@
 package agent
 
+import (
+	"time"
+)
+
 func WithNoCookie() AgentOption {
 	return func(a *Agent) error {
 		a.HttpClient.Jar = nil
@@ -24,6 +28,13 @@ func WithUserAgent(ua string) AgentOption {
 func WithBaseURL(base string) AgentOption {
 	return func(a *Agent) error {
 		a.BaseURL = base
+		return nil
+	}
+}
+
+func WithTimeout(d time.Duration) AgentOption {
+	return func(a *Agent) error {
+		a.RequestTimeout = d
 		return nil
 	}
 }
