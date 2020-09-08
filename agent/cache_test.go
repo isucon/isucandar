@@ -5,13 +5,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
 	"testing"
 	"time"
 )
 
-func get(a *Agent, path string) (*http.Request, *http.Response, error) {
-	req, err := a.Get(path)
+func req(a *Agent, method string, path string) (*http.Request, *http.Response, error) {
+	req, err := a.NewRequest(method, path, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -23,19 +22,69 @@ func get(a *Agent, path string) (*http.Request, *http.Response, error) {
 	return req, res, nil
 }
 
+func get(a *Agent, path string) (*http.Request, *http.Response, error) {
+	return req(a, http.MethodGet, path)
+}
+
+func TestCacheCondition(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/no-store":
+			w.Header().Set("Cache-Control", "no-store, max-age=100")
+		case "/invalid":
+			w.Header().Set("Cache-Control", "private, max-age=-10")
+		default:
+			w.Header().Set("Cache-Control", "public, max-age=1000")
+		}
+		w.WriteHeader(200)
+		io.WriteString(w, "OK")
+	}))
+	defer srv.Close()
+
+	agent, err := NewAgent(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	r, _, _ := req(agent, "POST", "/")
+	if cache := agent.CacheStore.Get(r); cache != nil {
+		t.Fatalf("Stored invalid cache: %v", cache)
+	}
+
+	r, _ = agent.Get("/")
+	r.Header.Set("Authorization", "Bearer X-TOKEN")
+	agent.Do(context.Background(), r)
+	if cache := agent.CacheStore.Get(r); cache != nil {
+		t.Fatalf("Stored invalid cache: %v", cache)
+	}
+
+	r, _, _ = get(agent, "/no-store")
+	if cache := agent.CacheStore.Get(r); cache != nil {
+		t.Fatalf("Stored invalid cache: %v", cache)
+	}
+
+	r, _, _ = get(agent, "/invalid")
+	if cache := agent.CacheStore.Get(r); cache != nil {
+		t.Fatalf("Stored invalid cache: %v", cache)
+	}
+
+	r, _ = agent.Get("/")
+	r.Header.Set("Cache-Control", "max-age=-1")
+	agent.Do(context.Background(), r)
+	if cache := agent.CacheStore.Get(r); cache != nil {
+		t.Fatalf("Stored invalid cache: %v", cache)
+	}
+}
+
 func TestCacheWithLastModified(t *testing.T) {
 	lm := time.Now().UTC()
 	lm = lm.Truncate(time.Second)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rb, _ := httputil.DumpRequest(r, false)
-		t.Logf("%s", rb)
-
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Last-Modified", lm.Format(http.TimeFormat))
 		ims, _ := http.ParseTime(r.Header.Get("If-Modified-Since"))
 
-		t.Logf("%v : %v", lm, ims)
 		if !lm.Equal(ims) {
 			w.WriteHeader(http.StatusOK)
 
@@ -51,7 +100,7 @@ func TestCacheWithLastModified(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req, res, err := get(agent, "/")
+	_, res, err := get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,10 +109,7 @@ func TestCacheWithLastModified(t *testing.T) {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
 
-	c := agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
-
-	req, res, err = get(agent, "/")
+	_, res, err = get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,23 +117,16 @@ func TestCacheWithLastModified(t *testing.T) {
 	if res.StatusCode != 304 {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
-
-	c = agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
 }
 
 func TestCacheWithETag(t *testing.T) {
 	etag := "W/deadbeaf"
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		rb, _ := httputil.DumpRequest(r, false)
-		t.Logf("%s", rb)
-
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("ETag", etag)
 		inm := r.Header.Get("If-None-Match")
 
-		t.Logf("%v : %v", etag, inm)
 		if etag != inm {
 			w.WriteHeader(http.StatusOK)
 
@@ -103,7 +142,7 @@ func TestCacheWithETag(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req, res, err := get(agent, "/")
+	_, res, err := get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,10 +151,7 @@ func TestCacheWithETag(t *testing.T) {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
 
-	c := agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
-
-	req, res, err = get(agent, "/")
+	_, res, err = get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,9 +159,6 @@ func TestCacheWithETag(t *testing.T) {
 	if res.StatusCode != 304 {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
-
-	c = agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
 }
 
 func TestCacheWithMaxAge(t *testing.T) {
@@ -146,6 +179,15 @@ func TestCacheWithMaxAge(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	_, res, err := get(agent, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != 200 {
+		t.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
 	req, res, err := get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
@@ -156,21 +198,8 @@ func TestCacheWithMaxAge(t *testing.T) {
 	}
 
 	c := agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
+	c.now = time.Now().Add(-3 * time.Second)
 
-	req, res, err = get(agent, "/")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if res.StatusCode != 200 {
-		t.Fatalf("status code missmatch: %d", res.StatusCode)
-	}
-
-	c = agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
-
-	<-time.After(3 * time.Second)
 	get(agent, "/")
 
 	if reqCount != 2 {
@@ -196,7 +225,7 @@ func TestCacheWithExpires(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req, res, err := get(agent, "/")
+	_, res, err := get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,10 +234,7 @@ func TestCacheWithExpires(t *testing.T) {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
 
-	c := agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
-
-	req, res, err = get(agent, "/")
+	_, res, err = get(agent, "/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,10 +243,7 @@ func TestCacheWithExpires(t *testing.T) {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
 
-	c = agent.CacheStore.Get(req)
-	t.Logf("%+v", c)
-
-	<-time.After(3 * time.Second)
+	<-time.After(1 * time.Second)
 	get(agent, "/")
 
 	if reqCount != 2 {
@@ -264,6 +287,33 @@ func TestCacheWithVary(t *testing.T) {
 	agent.Do(ctx, a)
 
 	if reqCount != 3 {
+		t.Fatalf("missmatch req count: %d", reqCount)
+	}
+}
+
+func TestCacheWithClear(t *testing.T) {
+	reqCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Cache-Control", "max-age=20000")
+		w.WriteHeader(http.StatusOK)
+
+		io.WriteString(w, "Hello, World")
+
+		reqCount++
+	}))
+	defer srv.Close()
+
+	agent, err := NewAgent(WithBaseURL(srv.URL))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	get(agent, "/")
+	agent.CacheStore.Clear()
+	get(agent, "/")
+
+	if reqCount != 2 {
 		t.Fatalf("missmatch req count: %d", reqCount)
 	}
 }

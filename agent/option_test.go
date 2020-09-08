@@ -3,6 +3,7 @@ package agent
 import (
 	"github.com/rosylilly/isucandar/failure"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,8 +49,8 @@ func TestBaseURL(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if agent.BaseURL != "http://base.example.com" {
-		t.Fatalf("missmatch base URL: %s", agent.BaseURL)
+	if agent.BaseURL.String() != "http://base.example.com" {
+		t.Fatalf("missmatch base URL: %s", agent.BaseURL.String())
 	}
 }
 
@@ -61,15 +62,18 @@ func TestTimeout(t *testing.T) {
 
 		io.WriteString(w, "Hello, World")
 	}))
-	defer srv.Close()
+	defer func() {
+		go srv.Close()
+	}()
 
-	agent, err := NewAgent(WithTimeout(1*time.Second), WithBaseURL(srv.URL))
+	agent, err := NewAgent(WithTimeout(1*time.Microsecond), WithBaseURL(srv.URL))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	_, _, err = get(agent, "/")
-	if err == nil || failure.GetErrorCode(err) != failure.TimeoutErrorCode.ErrorCode() {
+	var nerr net.Error
+	if ok := failure.As(err, &nerr); !ok || !nerr.Timeout() {
 		t.Fatalf("expected timeout error: %+v", err)
 	}
 }

@@ -3,13 +3,11 @@ package agent
 import (
 	"context"
 	"crypto/tls"
-	"github.com/rosylilly/isucandar/failure"
 	"io"
 	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
-	"path"
 	"time"
 )
 
@@ -17,10 +15,7 @@ const (
 	DefaultConnections    = 10000
 	DefaultName           = "isucandar"
 	DefaultAccept         = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-	DefaultRequestTimeout = 2 * time.Second
-
-	AgentInitializeError failure.StringCode = "agent-initialize"
-	AgentRequestError    failure.StringCode = "agent-request"
+	DefaultRequestTimeout = 1 * time.Second
 )
 
 var (
@@ -28,19 +23,20 @@ var (
 		InsecureSkipVerify: true,
 	}
 
+	DefaultDialer    *net.Dialer
 	DefaultTransport *http.Transport
 )
 
 func init() {
-	dialer := &net.Dialer{
+	DefaultDialer = &net.Dialer{
 		Timeout:   0,
 		KeepAlive: 60 * time.Second,
 	}
 
 	transport := &http.Transport{
 		Proxy:                 http.ProxyFromEnvironment,
-		Dial:                  dialer.Dial,
-		DialContext:           dialer.DialContext,
+		Dial:                  DefaultDialer.Dial,
+		DialContext:           DefaultDialer.DialContext,
 		TLSClientConfig:       DefaultTLSConfig,
 		DisableCompression:    true,
 		MaxIdleConns:          0,
@@ -58,37 +54,32 @@ func init() {
 type AgentOption func(*Agent) error
 
 type Agent struct {
-	Name           string
-	BaseURL        string
-	DefaultAccept  string
-	RequestTimeout time.Duration
-	CacheStore     CacheStore
-	HttpClient     *http.Client
+	Name          string
+	BaseURL       *url.URL
+	DefaultAccept string
+	CacheStore    CacheStore
+	HttpClient    *http.Client
 }
 
 func NewAgent(opts ...AgentOption) (*Agent, error) {
-	jar, err := cookiejar.New(&cookiejar.Options{})
-	if err != nil {
-		return nil, failure.NewError(AgentInitializeError, err)
-	}
+	jar, _ := cookiejar.New(&cookiejar.Options{})
 
 	agent := &Agent{
-		Name:           DefaultName,
-		BaseURL:        "",
-		DefaultAccept:  DefaultAccept,
-		RequestTimeout: DefaultRequestTimeout,
-		CacheStore:     NewCacheStore(),
+		Name:          DefaultName,
+		BaseURL:       nil,
+		DefaultAccept: DefaultAccept,
+		CacheStore:    NewCacheStore(),
 		HttpClient: &http.Client{
 			CheckRedirect: useLastResponse,
 			Transport:     DefaultTransport,
 			Jar:           jar,
-			Timeout:       0,
+			Timeout:       DefaultRequestTimeout,
 		},
 	}
 
 	for _, opt := range opts {
 		if err := opt(agent); err != nil {
-			return nil, failure.NewError(AgentInitializeError, err)
+			return nil, err
 		}
 	}
 
@@ -96,9 +87,6 @@ func NewAgent(opts ...AgentOption) (*Agent, error) {
 }
 
 func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-	ctx, cancel := context.WithTimeout(ctx, a.RequestTimeout)
-	defer cancel()
-
 	req = req.WithContext(ctx)
 
 	req.Header.Set("User-Agent", a.Name)
@@ -124,18 +112,18 @@ func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, erro
 	} else {
 		res, err = a.HttpClient.Do(req)
 		if err != nil {
-			return nil, failure.NewError(AgentRequestError, err)
+			return nil, err
 		}
 
 		res, err = decompress(res)
 		if err != nil {
-			return nil, failure.NewError(AgentRequestError, err)
+			return nil, err
 		}
 	}
 
 	cache, err = newCache(res, cache)
 	if err != nil {
-		return nil, failure.NewError(AgentRequestError, err)
+		return nil, err
 	}
 
 	if cache != nil && a.CacheStore != nil {
@@ -146,11 +134,14 @@ func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, erro
 }
 
 func (a *Agent) NewRequest(method string, target string, body io.Reader) (*http.Request, error) {
-	reqURL, err := url.Parse(a.BaseURL)
+	reqURL, err := url.Parse(target)
 	if err != nil {
-		return nil, failure.NewError(AgentRequestError, err)
+		return nil, err
 	}
-	reqURL.Path = path.Join(reqURL.Path, target)
+
+	if a.BaseURL != nil {
+		reqURL = a.BaseURL.ResolveReference(reqURL)
+	}
 
 	return http.NewRequest(method, reqURL.String(), body)
 }

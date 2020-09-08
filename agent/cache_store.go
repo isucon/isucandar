@@ -8,6 +8,7 @@ import (
 type CacheStore interface {
 	Get(*http.Request) *Cache
 	Put(*http.Request, *Cache)
+	Clear()
 }
 
 type cacheStore struct {
@@ -38,4 +39,11 @@ func (c *cacheStore) Put(r *http.Request, cache *Cache) {
 	defer c.mu.Unlock()
 
 	c.table[r.URL.String()] = cache
+}
+
+func (c *cacheStore) Clear() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.table = make(map[string]*Cache)
 }
