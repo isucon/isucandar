@@ -29,11 +29,39 @@ func TestError(t *testing.T) {
 
 	terr := NewError(errTemporary, aerr)
 
-	if m := fmt.Sprint(terr); m != "temporary: Test" {
+	if m := fmt.Sprint(terr); m != "temporary: application: Test" {
 		t.Fatalf("missmatch: %s", m)
 	}
 
 	if !Is(terr, berr) {
 		t.Fatalf("check invalid")
 	}
+
+	t.Logf("\n%+v", aerr)
+	t.Logf("\n%+v", terr)
+}
+
+func TestErrorFrames(t *testing.T) {
+	berr := fmt.Errorf("frames")
+
+	var f func(int) error
+	f = func(n int) error {
+		if n > 0 {
+			return f(n - 1)
+		} else {
+			return NewError(errApplication, berr)
+		}
+	}
+	aerr := f(3)
+
+	details := fmt.Sprintf("%+v", aerr)
+	dLines := strings.Split(details, "\n")
+
+	// callstack * 2 + 2 messages
+	eLineCount := 2 + CaptureCallstackSize*2
+	if len(dLines) != eLineCount {
+		t.Fatalf("expected %d but got %d", eLineCount, len(dLines))
+	}
+
+	t.Logf("%+v", aerr)
 }

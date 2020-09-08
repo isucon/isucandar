@@ -1,10 +1,15 @@
 package failure
 
 type Code interface {
+	error
 	ErrorCode() string
 }
 
 type StringCode string
+
+func (s StringCode) Error() string {
+	return string(s)
+}
 
 func (s StringCode) ErrorCode() string {
 	return string(s)

@@ -7,17 +7,22 @@ import (
 	"net"
 )
 
+var (
+	CaptureCallstackSize = 5
+)
+
 type Error struct {
 	Code
-	err   error
-	frame xerrors.Frame
+	err error
+	// xerrors は1スタックしかとりあげてくれないので複数取るように
+	frames []xerrors.Frame
 }
 
 func NewError(code Code, err error) *Error {
-	var wrapped *Error
-	if ok := As(err, &wrapped); ok {
-		return NewError(code, wrapped.err)
-	}
+	// var wrapped *Error
+	// if ok := As(err, &wrapped); ok {
+	// 	return NewError(code, wrapped.err)
+	// }
 
 	var nerr net.Error
 	if ok := As(err, &nerr); ok {
@@ -38,15 +43,17 @@ func NewError(code Code, err error) *Error {
 		code = TimeoutErrorCode
 	}
 
-	return &Error{
-		Code:  code,
-		err:   err,
-		frame: xerrors.Caller(2),
+	frames := make([]xerrors.Frame, 0, CaptureCallstackSize)
+	for i := 0; i < CaptureCallstackSize; i++ {
+		frame := xerrors.Caller(i + 1)
+		frames = append(frames, frame)
 	}
-}
 
-func (e *Error) Error() string { // implements error
-	return e.ErrorCode()
+	return &Error{
+		Code:   code,
+		err:    err,
+		frames: frames,
+	}
 }
 
 func (e *Error) Unwrap() error { // implments xerrors.Wrapper
@@ -60,9 +67,20 @@ func (e *Error) Format(f fmt.State, c rune) { // implements fmt.Formatter
 func (e *Error) FormatError(p xerrors.Printer) error { // implements xerrors.Formatter
 	p.Print(e.Error())
 	if p.Detail() {
-		e.frame.Format(p)
+		for _, frame := range e.frames {
+			frame.Format(p)
+		}
 	}
 	return e.err
+}
+
+func (e *Error) getOriginalMessage() string {
+	var err *Error
+	if As(e.err, &err) {
+		return err.getOriginalMessage()
+	} else {
+		return e.err.Error()
+	}
 }
 
 func Is(err, target error) bool {
