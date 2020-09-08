@@ -22,6 +22,11 @@ func TestErrors(t *testing.T) {
 	if table["unknown"] != 100 {
 		t.Errorf("missmatch unknown count: %d", table["unknown"])
 	}
+
+	errors := set.All()
+	if len(errors) != 100 {
+		t.Errorf("missmatch errors count: %d", len(errors))
+	}
 }
 
 func TestErrorsClosed(t *testing.T) {
@@ -39,11 +44,13 @@ func TestErrorsClosed(t *testing.T) {
 
 	table := set.Count()
 	if table["unknown"] != 3 {
-		t.Errorf("missmatch unknown count: %d", table["unknown"])
+		t.Fatalf("missmatch unknown count: %d", table["unknown"])
 	}
 
 	messages := set.Messages()
-	t.Logf("%+v", messages)
+	if len(messages["unknown"]) != 3 {
+		t.Fatalf("missmatch unknown message count: %d", len(messages["unknown"]))
+	}
 }
 
 func TestErrorsHook(t *testing.T) {

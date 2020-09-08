@@ -2,6 +2,7 @@ package failure
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"golang.org/x/xerrors"
 	"net"
@@ -44,9 +45,15 @@ func NewError(code Code, err error) *Error {
 	}
 
 	frames := make([]xerrors.Frame, 0, CaptureCallstackSize)
+	skip := 1
 	for i := 0; i < CaptureCallstackSize; i++ {
-		frame := xerrors.Caller(i + 1)
-		frames = append(frames, frame)
+		frame := xerrors.Caller(i + skip)
+		if BacktraceCleaner.match(frame) {
+			i--
+			skip++
+		} else {
+			frames = append(frames, frame)
+		}
 	}
 
 	return &Error{
@@ -74,17 +81,8 @@ func (e *Error) FormatError(p xerrors.Printer) error { // implements xerrors.For
 	return e.err
 }
 
-func (e *Error) getOriginalMessage() string {
-	var err *Error
-	if As(e.err, &err) {
-		return err.getOriginalMessage()
-	} else {
-		return e.err.Error()
-	}
-}
-
 func Is(err, target error) bool {
-	return xerrors.Is(err, target)
+	return xerrors.Is(err, target) || errors.Is(err, target)
 }
 
 func As(err error, target interface{}) bool {

@@ -2,6 +2,7 @@ package failure
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -27,6 +28,10 @@ func TestError(t *testing.T) {
 		t.Fatalf("check invalid")
 	}
 
+	if GetErrorCode(aerr) != "application" {
+		t.Fatalf("Error code is invalid: %s", GetErrorCode(aerr))
+	}
+
 	terr := NewError(errTemporary, aerr)
 
 	if m := fmt.Sprint(terr); m != "temporary: application: Test" {
@@ -37,8 +42,15 @@ func TestError(t *testing.T) {
 		t.Fatalf("check invalid")
 	}
 
-	t.Logf("\n%+v", aerr)
-	t.Logf("\n%+v", terr)
+	if GetErrorCode(terr) != "temporary" {
+		t.Fatalf("Error code is invalid: %s", GetErrorCode(terr))
+	}
+
+	gotCodes := GetErrorCodes(terr)
+	expectCodes := []string{"temporary", "application"}
+	if !reflect.DeepEqual(gotCodes, expectCodes) {
+		t.Fatalf("Error codes is invalid:\n  %v\n  %v", gotCodes, expectCodes)
+	}
 }
 
 func TestErrorFrames(t *testing.T) {
@@ -62,6 +74,4 @@ func TestErrorFrames(t *testing.T) {
 	if len(dLines) != eLineCount {
 		t.Fatalf("expected %d but got %d", eLineCount, len(dLines))
 	}
-
-	t.Logf("%+v", aerr)
 }

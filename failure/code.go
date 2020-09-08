@@ -1,5 +1,9 @@
 package failure
 
+import (
+	"golang.org/x/xerrors"
+)
+
 type Code interface {
 	error
 	ErrorCode() string
@@ -22,6 +26,31 @@ func GetErrorCode(err error) string {
 	} else {
 		return UnknownErrorCode.ErrorCode()
 	}
+}
+
+func GetErrorCodes(err error) []string {
+	var code Code
+	var wrap xerrors.Wrapper
+
+	unwrapped := false
+	codes := []string{}
+
+	for err != nil {
+		if ok := As(err, &code); ok {
+			codes = append(codes, code.ErrorCode())
+		} else if !unwrapped {
+			codes = append(codes, UnknownErrorCode.ErrorCode())
+		}
+
+		if ok := As(err, &wrap); ok {
+			err = wrap.Unwrap()
+			unwrapped = true
+		} else {
+			err = nil
+		}
+	}
+
+	return codes
 }
 
 const (

@@ -99,13 +99,25 @@ func (s *Errors) Count() map[string]int64 {
 
 	table := make(map[string]int64)
 	for _, err := range s.errors {
-		code := GetErrorCode(err)
-		if _, ok := table[code]; ok {
-			table[code]++
-		} else {
-			table[code] = 1
+		codes := GetErrorCodes(err)
+		for _, code := range codes {
+			if _, ok := table[code]; ok {
+				table[code]++
+			} else {
+				table[code] = 1
+			}
 		}
 	}
 
 	return table
+}
+
+func (s *Errors) All() []error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	errors := make([]error, len(s.errors))
+	copy(errors, s.errors)
+
+	return errors
 }
