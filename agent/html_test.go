@@ -21,6 +21,7 @@ const exampleHTMLDoc = `
 		<link rel="stylesheet" href="/root.css">
 		<link rel="stylesheet" href="../alt.css">
 		<link rel="dns-prefetch" href="https://example.com">
+		<link rel="manifest" href="/manifest.webmanifest">
 	</head>
 	<body>
 		<h1>Hello, World</h1>
@@ -66,7 +67,7 @@ func TestHTMLParse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(resources) != 12 {
+	if len(resources) != 13 {
 		for k, _ := range resources {
 			t.Log(k)
 		}
@@ -84,6 +85,7 @@ func TestHTMLParse(t *testing.T) {
 		srv.URL + "/favicon.ico",
 		srv.URL + "/apple-icon-precomposed.png",
 		srv.URL + "/apple-icon.png",
+		srv.URL + "/manifest.webmanifest",
 		"https://example.com/",
 		"http://example.com/",
 	}
