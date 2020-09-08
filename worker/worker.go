@@ -17,7 +17,7 @@ type Worker struct {
 	workFunc    WorkerFunc
 	count       int32
 	parallelism int32
-	limiter     *parallel.Parallel
+	parallel    *parallel.Parallel
 }
 
 func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
@@ -58,9 +58,9 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	limiter := w.getLimiter()
-	limiter.Reset()
-	defer limiter.Close()
+	parallel := w.getLimiter()
+	parallel.Reset()
+	defer parallel.Close()
 
 	work := func(ctx context.Context) {
 		w.workFunc(ctx, -1)
@@ -70,10 +70,10 @@ L:
 	for {
 		select {
 		case <-ctx.Done():
-			limiter.Close()
+			parallel.Close()
 			break L
 		default:
-			limiter.Do(ctx, work)
+			parallel.Do(ctx, work)
 		}
 	}
 
@@ -85,9 +85,9 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	limiter := w.getLimiter()
-	limiter.Reset()
-	defer limiter.Close()
+	parallel := w.getLimiter()
+	parallel.Reset()
+	defer parallel.Close()
 
 	work := func(i int) func(context.Context) {
 		return func(ctx context.Context) {
@@ -99,10 +99,10 @@ L:
 	for i := 0; i < limit; i++ {
 		select {
 		case <-ctx.Done():
-			limiter.Close()
+			parallel.Close()
 			break L
 		default:
-			limiter.Do(ctx, work(i))
+			parallel.Do(ctx, work(i))
 		}
 	}
 
@@ -110,8 +110,8 @@ L:
 }
 
 func (w *Worker) Wait() {
-	if w.limiter != nil {
-		<-w.limiter.Wait()
+	if w.parallel != nil {
+		<-w.parallel.Wait()
 	}
 }
 
@@ -121,19 +121,19 @@ func (w *Worker) SetLoopCount(count int32) {
 
 func (w *Worker) SetParallelism(paralellism int32) {
 	atomic.StoreInt32(&w.parallelism, paralellism)
-	if w.limiter != nil {
-		w.limiter.SetParallelism(paralellism)
+	if w.parallel != nil {
+		w.parallel.SetParallelism(paralellism)
 	}
 }
 
 func (w *Worker) getLimiter() *parallel.Parallel {
-	if w.limiter == nil {
+	if w.parallel == nil {
 		p := atomic.LoadInt32(&w.parallelism)
-		limiter := parallel.NewParallel(p)
-		w.limiter = limiter
+		parallel := parallel.NewParallel(p)
+		w.parallel = parallel
 	}
 
-	return w.limiter
+	return w.parallel
 }
 
 func WithLoopCount(count int32) WorkerOption {
