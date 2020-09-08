@@ -1,6 +1,7 @@
 # Isucandar
 
-![test](https://github.com/rosylilly/isucandar/workflows/test/badge.svg)
+[![test](https://github.com/rosylilly/isucandar/workflows/test/badge.svg)](https://github.com/rosylilly/isucandar/actions?query=workflow%3Atest)
+[![codecov](https://codecov.io/gh/rosylilly/isucandar/branch/master/graph/badge.svg?token=KO1N8H5S53)](https://codecov.io/gh/rosylilly/isucandar)
 
 Utility packages for [ISUCON](http://isucon.net/) benchmarker.
 
