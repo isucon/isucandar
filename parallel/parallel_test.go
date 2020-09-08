@@ -1,4 +1,4 @@
-package worker
+package parallel
 
 import (
 	"context"
@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-func TestWorkerLimiter(t *testing.T) {
-	limiter := NewWorkerLimiter(2)
+func TestParallel(t *testing.T) {
+	limiter := NewParallel(2)
 	defer limiter.Close()
 
 	f := func(_ context.Context) {
@@ -31,8 +31,8 @@ func TestWorkerLimiter(t *testing.T) {
 	}
 }
 
-func TestWorkerLimiterClosed(t *testing.T) {
-	limiter := NewWorkerLimiter(2)
+func TestParallelClosed(t *testing.T) {
+	limiter := NewParallel(2)
 	limiter.Close()
 
 	ctx := context.TODO()
@@ -53,8 +53,8 @@ func TestWorkerLimiterClosed(t *testing.T) {
 	}
 }
 
-func TestWorkerLimiterDoneNotLock(t *testing.T) {
-	limiter := NewWorkerLimiter(2)
+func TestParallelDoneNotLock(t *testing.T) {
+	limiter := NewParallel(2)
 
 	limiter.done()
 	limiter.done()

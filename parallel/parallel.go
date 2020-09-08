@@ -1,4 +1,4 @@
-package worker
+package parallel
 
 import (
 	"context"
@@ -15,25 +15,25 @@ const (
 	MaxParallelism = 5000
 )
 
-type WorkerLimiter struct {
+type Parallel struct {
 	limit  int32
 	count  int32
 	closed uint32
 }
 
-func NewWorkerLimiter(limit int32) *WorkerLimiter {
+func NewParallel(limit int32) *Parallel {
 	if limit <= 0 {
 		limit = MaxParallelism
 	}
 
-	return &WorkerLimiter{
+	return &Parallel{
 		limit:  limit,
 		count:  0,
 		closed: 0,
 	}
 }
 
-func (l *WorkerLimiter) Do(ctx context.Context, f func(context.Context)) error {
+func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
 	err := l.start()
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func (l *WorkerLimiter) Do(ctx context.Context, f func(context.Context)) error {
 	return nil
 }
 
-func (l *WorkerLimiter) Wait() <-chan bool {
+func (l *Parallel) Wait() <-chan bool {
 	ch := make(chan bool)
 
 	go func() {
@@ -67,20 +67,20 @@ func (l *WorkerLimiter) Wait() <-chan bool {
 	return ch
 }
 
-func (l *WorkerLimiter) Close() {
+func (l *Parallel) Close() {
 	atomic.StoreUint32(&l.closed, 1)
 }
 
-func (l *WorkerLimiter) Reset() {
+func (l *Parallel) Reset() {
 	atomic.StoreUint32(&l.closed, 0)
 	atomic.StoreInt32(&l.count, 0)
 }
 
-func (l *WorkerLimiter) SetParallelism(parallel int32) {
+func (l *Parallel) SetParallelism(parallel int32) {
 	atomic.StoreInt32(&l.limit, parallel)
 }
 
-func (l *WorkerLimiter) start() error {
+func (l *Parallel) start() error {
 	for atomic.LoadUint32(&l.closed) == 0 {
 		if count := atomic.LoadInt32(&l.count); count < atomic.LoadInt32(&l.limit) {
 			if atomic.CompareAndSwapInt32(&l.count, count, count+1) {
@@ -94,6 +94,6 @@ func (l *WorkerLimiter) start() error {
 	return ErrLimiterClosed
 }
 
-func (l *WorkerLimiter) done() {
+func (l *Parallel) done() {
 	atomic.AddInt32(&l.count, -1)
 }

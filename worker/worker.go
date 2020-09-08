@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"github.com/rosylilly/isucandar/parallel"
 	"sync/atomic"
 )
 
@@ -16,7 +17,7 @@ type Worker struct {
 	workFunc    WorkerFunc
 	count       int32
 	parallelism int32
-	limiter     *WorkerLimiter
+	limiter     *parallel.Parallel
 }
 
 func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
@@ -125,10 +126,10 @@ func (w *Worker) SetParallelism(paralellism int32) {
 	}
 }
 
-func (w *Worker) getLimiter() *WorkerLimiter {
+func (w *Worker) getLimiter() *parallel.Parallel {
 	if w.limiter == nil {
 		p := atomic.LoadInt32(&w.parallelism)
-		limiter := NewWorkerLimiter(p)
+		limiter := parallel.NewParallel(p)
 		w.limiter = limiter
 	}
 
