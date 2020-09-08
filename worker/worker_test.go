@@ -137,6 +137,27 @@ func TestWorkerUnlimitedCanceled(t *testing.T) {
 	}
 }
 
+func TestWorkerSetLoopCount(t *testing.T) {
+	var worker *Worker
+
+	count := int32(0)
+	f := func(_ context.Context, i int) {
+		atomic.AddInt32(&count, 1)
+	}
+
+	worker, err := NewWorker(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	worker.SetLoopCount(10)
+
+	worker.Process(context.Background())
+
+	if n := atomic.LoadInt32(&count); n != 10 {
+		t.Fatalf("Executed count: %d", n)
+	}
+}
+
 func TestWorkerSetParallelism(t *testing.T) {
 	var worker *Worker
 
@@ -146,10 +167,11 @@ func TestWorkerSetParallelism(t *testing.T) {
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	worker, err := NewWorker(f, WithLoopCount(3), WithMaxParallelism(1))
+	worker, err := NewWorker(f, WithMaxParallelism(1))
 	if err != nil {
 		t.Fatal(err)
 	}
+	worker.SetLoopCount(10)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

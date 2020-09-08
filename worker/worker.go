@@ -14,8 +14,8 @@ type WorkerOption func(*Worker) error
 
 type Worker struct {
 	workFunc    WorkerFunc
-	count       *int32
-	parallelism *int32
+	count       int32
+	parallelism int32
 	limiter     *WorkerLimiter
 }
 
@@ -29,8 +29,8 @@ func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
 
 	worker := &Worker{
 		workFunc:    f,
-		count:       &count,
-		parallelism: &parallelism,
+		count:       count,
+		parallelism: parallelism,
 	}
 
 	for _, opt := range opts {
@@ -44,7 +44,7 @@ func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
 }
 
 func (w *Worker) Process(ctx context.Context) {
-	count := atomic.LoadInt32(w.count)
+	count := atomic.LoadInt32(&w.count)
 	if count < 1 {
 		w.processInfinity(ctx)
 	} else {
@@ -114,8 +114,12 @@ func (w *Worker) Wait() {
 	}
 }
 
+func (w *Worker) SetLoopCount(count int32) {
+	atomic.StoreInt32(&w.count, count)
+}
+
 func (w *Worker) SetParallelism(paralellism int32) {
-	atomic.StoreInt32(w.parallelism, paralellism)
+	atomic.StoreInt32(&w.parallelism, paralellism)
 	if w.limiter != nil {
 		w.limiter.SetParallelism(paralellism)
 	}
@@ -123,7 +127,7 @@ func (w *Worker) SetParallelism(paralellism int32) {
 
 func (w *Worker) getLimiter() *WorkerLimiter {
 	if w.limiter == nil {
-		p := atomic.LoadInt32(w.parallelism)
+		p := atomic.LoadInt32(&w.parallelism)
 		limiter := NewWorkerLimiter(p)
 		w.limiter = limiter
 	}
@@ -131,30 +135,30 @@ func (w *Worker) getLimiter() *WorkerLimiter {
 	return w.limiter
 }
 
-func WithLoopCount(count int) WorkerOption {
+func WithLoopCount(count int32) WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(w.count, int32(count))
+		atomic.StoreInt32(&w.count, count)
 		return nil
 	}
 }
 
 func WithInfinityLoop() WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(w.count, int32(-1))
+		atomic.StoreInt32(&w.count, int32(-1))
 		return nil
 	}
 }
 
-func WithMaxParallelism(parallelism int) WorkerOption {
+func WithMaxParallelism(parallelism int32) WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(w.parallelism, int32(parallelism))
+		atomic.StoreInt32(&w.parallelism, parallelism)
 		return nil
 	}
 }
 
 func WithUnlimitedParallelism() WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(w.parallelism, int32(-1))
+		atomic.StoreInt32(&w.parallelism, int32(-1))
 		return nil
 	}
 }
