@@ -3,8 +3,8 @@ package worker
 import (
 	"context"
 	"errors"
-	"sync"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -16,10 +16,9 @@ const (
 )
 
 type WorkerLimiter struct {
-	mu     sync.RWMutex
-	count  *int32
 	limit  int32
-	closed bool
+	count  int32
+	closed uint32
 }
 
 func NewWorkerLimiter(limit int32) *WorkerLimiter {
@@ -27,23 +26,28 @@ func NewWorkerLimiter(limit int32) *WorkerLimiter {
 		limit = MaxParallelism
 	}
 
-	count := int32(0)
 	return &WorkerLimiter{
-		count:  &count,
 		limit:  limit,
-		mu:     sync.RWMutex{},
-		closed: false,
+		count:  0,
+		closed: 0,
 	}
 }
 
 func (l *WorkerLimiter) Do(ctx context.Context, f func(context.Context)) error {
 	err := l.start()
-	if err == ErrLimiterClosed {
+	if err != nil {
 		return err
 	}
 
+	if ctx.Err() != nil {
+		l.done()
+		return nil
+	}
+
 	go func() {
-		defer l.done()
+		defer func() {
+			l.done()
+		}()
 		f(ctx)
 	}()
 
@@ -54,7 +58,7 @@ func (l *WorkerLimiter) Wait() <-chan bool {
 	ch := make(chan bool)
 
 	go func() {
-		for atomic.LoadInt32(l.count) > 0 {
+		for atomic.LoadInt32(&l.count) > 0 {
 			// nop
 		}
 		close(ch)
@@ -64,29 +68,32 @@ func (l *WorkerLimiter) Wait() <-chan bool {
 }
 
 func (l *WorkerLimiter) Close() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.closed = true
-	atomic.StoreInt32(l.count, 0)
+	atomic.StoreUint32(&l.closed, 1)
+}
+
+func (l *WorkerLimiter) Reset() {
+	atomic.StoreUint32(&l.closed, 0)
+	atomic.StoreInt32(&l.count, 0)
+}
+
+func (l *WorkerLimiter) SetParallelism(parallel int32) {
+	atomic.StoreInt32(&l.limit, parallel)
 }
 
 func (l *WorkerLimiter) start() error {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-
-	for {
-		if l.closed {
-			return ErrLimiterClosed
-		}
-
-		if count := atomic.LoadInt32(l.count); count < l.limit {
-			if atomic.CompareAndSwapInt32(l.count, count, count+1) {
+	for atomic.LoadUint32(&l.closed) == 0 {
+		if count := atomic.LoadInt32(&l.count); count < atomic.LoadInt32(&l.limit) {
+			if atomic.CompareAndSwapInt32(&l.count, count, count+1) {
 				return nil
 			}
 		}
+
+		time.Sleep(-1)
 	}
+
+	return ErrLimiterClosed
 }
 
 func (l *WorkerLimiter) done() {
-	atomic.AddInt32(l.count, -1)
+	atomic.AddInt32(&l.count, -1)
 }

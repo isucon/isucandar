@@ -16,6 +16,7 @@ type Worker struct {
 	workFunc    WorkerFunc
 	count       *int32
 	parallelism *int32
+	limiter     *WorkerLimiter
 }
 
 func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
@@ -56,21 +57,21 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	limiter := w.limiter()
+	limiter := w.getLimiter()
+	limiter.Reset()
 	defer limiter.Close()
 
 	work := func(ctx context.Context) {
 		w.workFunc(ctx, -1)
 	}
 
-	go func() {
-		<-ctx.Done()
-		limiter.Close()
-	}()
-
 	for {
-		if err := limiter.Do(ctx, work); err != nil {
+		select {
+		case <-ctx.Done():
+			limiter.Close()
 			return
+		default:
+			limiter.Do(ctx, work)
 		}
 	}
 }
@@ -80,7 +81,8 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	limiter := w.limiter()
+	limiter := w.getLimiter()
+	limiter.Reset()
 	defer limiter.Close()
 
 	work := func(i int) func(context.Context) {
@@ -89,25 +91,40 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		}
 	}
 
-	go func() {
-		<-ctx.Done()
-		limiter.Close()
-	}()
-
 	for i := 0; i < limit; i++ {
-		if err := limiter.Do(ctx, work(i)); err != nil {
+		select {
+		case <-ctx.Done():
+			limiter.Close()
 			return
+		default:
+			limiter.Do(ctx, work(i))
 		}
 	}
 
 	<-limiter.Wait()
 }
 
-func (w *Worker) limiter() *WorkerLimiter {
-	p := atomic.LoadInt32(w.parallelism)
-	limiter := NewWorkerLimiter(p)
+func (w *Worker) Wait() {
+	if w.limiter != nil {
+		<-w.limiter.Wait()
+	}
+}
 
-	return limiter
+func (w *Worker) SetParallelism(paralellism int32) {
+	atomic.StoreInt32(w.parallelism, paralellism)
+	if w.limiter != nil {
+		w.limiter.SetParallelism(paralellism)
+	}
+}
+
+func (w *Worker) getLimiter() *WorkerLimiter {
+	if w.limiter == nil {
+		p := atomic.LoadInt32(w.parallelism)
+		limiter := NewWorkerLimiter(p)
+		w.limiter = limiter
+	}
+
+	return w.limiter
 }
 
 func WithLoopCount(count int) WorkerOption {
