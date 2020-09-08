@@ -18,6 +18,10 @@ type Backtrace struct {
 	LineNo   int
 }
 
+func (b *Backtrace) String() string {
+	return fmt.Sprintf("%s\n  %s:%d", b.Function, b.File, b.LineNo)
+}
+
 type backtraceCleaner struct {
 	matcher func(Backtrace) bool
 }

@@ -2,6 +2,7 @@ package failure
 
 import (
 	"fmt"
+	"golang.org/x/xerrors"
 	"strings"
 	"testing"
 )
@@ -43,4 +44,21 @@ func TestBacktraceCleaner(t *testing.T) {
 		t.Logf("\n%+v", err)
 		t.Fatalf("missmatch call stack size: %d / %d", len(dLines), expectLines)
 	}
+}
+
+func TestFrameConvertor(t *testing.T) {
+	convertor := &frameConvertor{}
+
+	frame := xerrors.Caller(0)
+
+	// No op
+	convertor.Print(frame)
+
+	frame.Format(convertor)
+	backtrace := convertor.Backtrace()
+
+	if !strings.HasSuffix(backtrace.Function, "failure.TestFrameConvertor") {
+		t.Fatalf("Not match function: %s", backtrace.String())
+	}
+	t.Logf("%s", backtrace.String())
 }
