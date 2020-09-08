@@ -65,15 +65,18 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		w.workFunc(ctx, -1)
 	}
 
+L:
 	for {
 		select {
 		case <-ctx.Done():
 			limiter.Close()
-			return
+			break L
 		default:
 			limiter.Do(ctx, work)
 		}
 	}
+
+	w.Wait()
 }
 
 func (w *Worker) processLimited(ctx context.Context, limit int) {
@@ -91,17 +94,18 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		}
 	}
 
+L:
 	for i := 0; i < limit; i++ {
 		select {
 		case <-ctx.Done():
 			limiter.Close()
-			return
+			break L
 		default:
 			limiter.Do(ctx, work(i))
 		}
 	}
 
-	<-limiter.Wait()
+	w.Wait()
 }
 
 func (w *Worker) Wait() {
