@@ -26,26 +26,23 @@ func NewError(code Code, err error) *Error {
 	// }
 
 	var nerr net.Error
-	if ok := As(err, &nerr); ok {
+	if As(err, &nerr) {
 		switch true {
 		case nerr.Timeout():
-			code = TimeoutErrorCode
+			err = newError(TimeoutErrorCode, err)
 		case nerr.Temporary():
-			code = TemporaryErrorCode
-		default:
+			err = newError(TemporaryErrorCode, err)
 		}
+	} else if Is(err, context.Canceled) {
+		err = newError(CanceledErrorCode, err)
 	}
 
-	if ok := Is(err, context.Canceled); ok {
-		code = CanceledErrorCode
-	}
+	return newError(code, err)
+}
 
-	if ok := Is(err, context.DeadlineExceeded); ok {
-		code = TimeoutErrorCode
-	}
-
+func newError(code Code, err error) *Error {
 	frames := make([]xerrors.Frame, 0, CaptureCallstackSize)
-	skip := 1
+	skip := 2
 	for i := 0; i < CaptureCallstackSize; i++ {
 		frame := xerrors.Caller(i + skip)
 		if BacktraceCleaner.match(frame) {

@@ -1,10 +1,12 @@
 package failure
 
 import (
+	"context"
 	"fmt"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -50,6 +52,64 @@ func TestError(t *testing.T) {
 	expectCodes := []string{"temporary", "application"}
 	if !reflect.DeepEqual(gotCodes, expectCodes) {
 		t.Fatalf("Error codes is invalid:\n  %v\n  %v", gotCodes, expectCodes)
+	}
+}
+
+type fakeNetError struct {
+	timeout   bool
+	temporary bool
+}
+
+func (f fakeNetError) Error() string {
+	return "fake"
+}
+
+func (f fakeNetError) Timeout() bool {
+	return f.timeout
+}
+
+func (f fakeNetError) Temporary() bool {
+	return f.temporary
+}
+
+func TestErrorWrap(t *testing.T) {
+	rctx := context.TODO()
+
+	ctx, cancel := context.WithCancel(rctx)
+	cancel()
+
+	canceledError := NewError(errApplication, ctx.Err())
+	if GetErrorCode(canceledError) != "application" {
+		t.Fatalf("%s", GetErrorCode(canceledError))
+	}
+	codes := GetErrorCodes(canceledError)
+	expectCodes := []string{"application", CanceledErrorCode.ErrorCode()}
+	if !reflect.DeepEqual(codes, expectCodes) {
+		t.Fatalf("Error codes is invalid:\n  %v\n  %v", codes, expectCodes)
+	}
+
+	ctx, cancel = context.WithTimeout(rctx, -1*time.Second)
+	defer cancel()
+
+	timeoutError := NewError(errApplication, ctx.Err())
+	if GetErrorCode(timeoutError) != "application" {
+		t.Fatalf("%s", GetErrorCode(timeoutError))
+	}
+	codes = GetErrorCodes(timeoutError)
+	expectCodes = []string{"application", TimeoutErrorCode.ErrorCode()}
+	if !reflect.DeepEqual(codes, expectCodes) {
+		t.Fatalf("Error codes is invalid:\n  %v\n  %v", codes, expectCodes)
+	}
+
+	ferr := fakeNetError{timeout: false, temporary: true}
+	temporaryError := NewError(errApplication, ferr)
+	if GetErrorCode(temporaryError) != "application" {
+		t.Fatalf("%s", GetErrorCode(temporaryError))
+	}
+	codes = GetErrorCodes(temporaryError)
+	expectCodes = []string{"application", TemporaryErrorCode.ErrorCode()}
+	if !reflect.DeepEqual(codes, expectCodes) {
+		t.Fatalf("Error codes is invalid:\n  %v\n  %v", codes, expectCodes)
 	}
 }
 
