@@ -17,8 +17,8 @@ jobs:
       - uses: actions/checkout@master
         with:
           fetch-depth: 1
-      - run: go test -v -race  -cover -coverprofile=cover.out ./...
+      - run: make test
       - uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          file: ./cover.out
+          file: ./tmp/cover.out
