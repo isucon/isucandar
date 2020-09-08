@@ -3,7 +3,7 @@ package failure
 import (
 	"context"
 	"fmt"
-	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -58,15 +58,10 @@ func TestErrorsHook(t *testing.T) {
 	set := NewErrors(ctx)
 	defer cancel()
 
-	cnt := 0
-	mu := sync.Mutex{}
+	n := int32(0)
+	cnt := &n
 	set.Hook(func(err error) {
-		mu.Lock()
-		defer mu.Unlock()
-
-		if GetErrorCode(err) == "unknown" {
-			cnt++
-		}
+		atomic.AddInt32(cnt, 1)
 	})
 
 	for i := 0; i < 10; i++ {
@@ -80,9 +75,7 @@ func TestErrorsHook(t *testing.T) {
 		t.Errorf("missmatch unknown count: %d", table["unknown"])
 	}
 
-	mu.Lock()
-	if cnt != 10 {
+	if atomic.LoadInt32(cnt) != 10 {
 		t.Errorf("missmatch unknown hook count: %d", cnt)
 	}
-	mu.Unlock()
 }
