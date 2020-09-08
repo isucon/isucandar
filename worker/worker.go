@@ -100,10 +100,7 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		}
 	}
 
-	select {
-	case <-limiter.Wait():
-	case <-ctx.Done():
-	}
+	<-limiter.Wait()
 }
 
 func (w *Worker) limiter() *WorkerLimiter {

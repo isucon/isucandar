@@ -60,9 +60,7 @@ func (f *frameConvertor) Detail() bool {
 	return true
 }
 
-func (f *frameConvertor) Print(args ...interface{}) {
-	// Nothing
-}
+func (f *frameConvertor) Print(args ...interface{}) {}
 
 func (f *frameConvertor) Printf(format string, args ...interface{}) {
 	switch format {
