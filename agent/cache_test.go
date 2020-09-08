@@ -280,7 +280,7 @@ func TestCacheWithVary(t *testing.T) {
 	a := req.Clone(ctx)
 	agent.Do(ctx, a)
 	a = req.Clone(ctx)
-	agent.Name = "Hoge"
+	a.Header.Set("User-Agent", "Hoge")
 	agent.Do(ctx, a)
 	a = req.Clone(ctx)
 	a.Header.Set("X-Cache-Count", "3")

@@ -96,13 +96,6 @@ func (a *Agent) ClearCookie() {
 func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	req = req.WithContext(ctx)
 
-	req.Header.Set("User-Agent", a.Name)
-	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
-	req.Header.Set("Connection", "keep-alive")
-	if req.Header.Get("Accept") == "" {
-		req.Header.Set("Accept", a.DefaultAccept)
-	}
-
 	var cache *Cache
 	if a.CacheStore != nil {
 		cache = a.CacheStore.Get(req)
@@ -150,7 +143,19 @@ func (a *Agent) NewRequest(method string, target string, body io.Reader) (*http.
 		reqURL = a.BaseURL.ResolveReference(reqURL)
 	}
 
-	return http.NewRequest(method, reqURL.String(), body)
+	req, err := http.NewRequest(method, reqURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("User-Agent", a.Name)
+	req.Header.Set("Accept-Encoding", "gzip, deflate, br")
+	req.Header.Set("Connection", "keep-alive")
+	if req.Header.Get("Accept") == "" {
+		req.Header.Set("Accept", a.DefaultAccept)
+	}
+
+	return req, nil
 }
 
 func (a *Agent) GET(target string) (*http.Request, error) {
