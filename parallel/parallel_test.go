@@ -7,42 +7,42 @@ import (
 )
 
 func TestParallel(t *testing.T) {
-	limiter := NewParallel(2)
-	defer limiter.Close()
+	parallel := NewParallel(2)
+	defer parallel.Close()
 
 	f := func(_ context.Context) {
-		<-time.After(1 * time.Second)
+		<-time.After(1 * time.Millisecond)
 	}
 
 	now := time.Now()
 
 	ctx := context.TODO()
-	limiter.Do(ctx, f)
-	limiter.Do(ctx, f)
-	limiter.Do(ctx, f)
-	limiter.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
 
-	<-limiter.Wait()
+	<-parallel.Wait()
 
 	diff := time.Now().Sub(now)
 
-	if diff >= 3*time.Second {
+	if diff >= 3*time.Millisecond {
 		t.Fatalf("process time: %s", diff)
 	}
 }
 
 func TestParallelClosed(t *testing.T) {
-	limiter := NewParallel(2)
-	limiter.Close()
+	parallel := NewParallel(2)
+	parallel.Close()
 
 	ctx := context.TODO()
 
 	called := false
-	err := limiter.Do(ctx, func(_ context.Context) {
+	err := parallel.Do(ctx, func(_ context.Context) {
 		called = true
 	})
 
-	<-limiter.Wait()
+	<-parallel.Wait()
 
 	if err == nil || err != ErrLimiterClosed {
 		t.Fatalf("missmatch error: %+v", err)
@@ -54,14 +54,70 @@ func TestParallelClosed(t *testing.T) {
 }
 
 func TestParallelDoneNotLock(t *testing.T) {
-	limiter := NewParallel(2)
+	parallel := NewParallel(2)
 
-	limiter.done()
-	limiter.done()
-	limiter.done()
-	limiter.Close()
-	limiter.done()
-	limiter.done()
+	parallel.done()
+	parallel.done()
+	parallel.done()
+	parallel.Close()
+	parallel.done()
+	parallel.done()
 
-	<-limiter.Wait()
+	<-parallel.Wait()
+}
+
+func TestParallelUnlimited(t *testing.T) {
+	parallel := NewParallel(0)
+
+	if parallel.limit != MaxParallelism {
+		t.Fatalf("Invalid limit: %d", parallel.limit)
+	}
+}
+
+func TestParallelCanceled(t *testing.T) {
+	parallel := NewParallel(0)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	parallel.Do(ctx, func(_ context.Context) {
+		t.Fatal("Do not call")
+	})
+
+	<-parallel.Wait()
+}
+
+func TestParallelSetParallelism(t *testing.T) {
+	parallel := NewParallel(0)
+
+	f := func(c context.Context) {
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	check := func(expectTime time.Duration) {
+		parallel.Reset()
+
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		now := time.Now()
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		<-parallel.Wait()
+
+		parallel.Wait()
+		diff := time.Now().Sub(now)
+
+		if diff > expectTime {
+			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
+		}
+	}
+
+	parallel.SetParallelism(2)
+	check(3 * time.Millisecond)
+
+	parallel.SetParallelism(1)
+	check(6 * time.Millisecond)
 }

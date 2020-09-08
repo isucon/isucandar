@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
-	"time"
 )
 
 var (
@@ -22,7 +21,7 @@ type Parallel struct {
 }
 
 func NewParallel(limit int32) *Parallel {
-	if limit <= 0 {
+	if limit <= 0 || limit > MaxParallelism {
 		limit = MaxParallelism
 	}
 
@@ -87,8 +86,6 @@ func (l *Parallel) start() error {
 				return nil
 			}
 		}
-
-		time.Sleep(-1)
 	}
 
 	return ErrLimiterClosed
