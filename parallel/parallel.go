@@ -75,8 +75,11 @@ func (l *Parallel) Reset() {
 	atomic.StoreInt32(&l.count, 0)
 }
 
-func (l *Parallel) SetParallelism(parallel int32) {
-	atomic.StoreInt32(&l.limit, parallel)
+func (l *Parallel) SetParallelism(limit int32) {
+	if limit < 1 || limit > MaxParallelism {
+		limit = MaxParallelism
+	}
+	atomic.StoreInt32(&l.limit, limit)
 }
 
 func (l *Parallel) start() error {
