@@ -76,6 +76,6 @@ func TestErrorsHook(t *testing.T) {
 	}
 
 	if atomic.LoadInt32(cnt) != 10 {
-		t.Errorf("missmatch unknown hook count: %d", cnt)
+		t.Errorf("missmatch unknown hook count: %d", atomic.LoadInt32(cnt))
 	}
 }
