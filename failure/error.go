@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	CaptureCallstackSize = 5
+	CaptureBacktraceSize = 5
 )
 
 type Error struct {
@@ -41,9 +41,9 @@ func NewError(code Code, err error) *Error {
 }
 
 func newError(code Code, err error) *Error {
-	frames := make([]xerrors.Frame, 0, CaptureCallstackSize)
+	frames := make([]xerrors.Frame, 0, CaptureBacktraceSize)
 	skip := 2
-	for i := 0; i < CaptureCallstackSize; i++ {
+	for i := 0; i < CaptureBacktraceSize; i++ {
 		frame := xerrors.Caller(i + skip)
 		if BacktraceCleaner.match(frame) {
 			i--

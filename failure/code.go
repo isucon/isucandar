@@ -5,7 +5,7 @@ import (
 )
 
 type Code interface {
-	error
+	Error() string
 	ErrorCode() string
 }
 

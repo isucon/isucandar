@@ -10,12 +10,12 @@ import (
 func TestBacktraceCleaner(t *testing.T) {
 	cleaner := &backtraceCleaner{}
 	defaultCleaner := BacktraceCleaner
-	defaultCaptureCallstackSize := CaptureCallstackSize
+	defaultCaptureBacktraceSize := CaptureBacktraceSize
 	BacktraceCleaner = cleaner
-	CaptureCallstackSize = 100
+	CaptureBacktraceSize = 100
 	defer func() {
 		BacktraceCleaner = defaultCleaner
-		CaptureCallstackSize = defaultCaptureCallstackSize
+		CaptureBacktraceSize = defaultCaptureBacktraceSize
 	}()
 
 	cleaner.Add(SkipGOROOT)

@@ -130,7 +130,7 @@ func TestErrorFrames(t *testing.T) {
 	dLines := strings.Split(details, "\n")
 
 	// callstack * 2 + 2 messages
-	eLineCount := 2 + CaptureCallstackSize*2
+	eLineCount := 2 + CaptureBacktraceSize*2
 	if len(dLines) != eLineCount {
 		t.Fatalf("expected %d but got %d", eLineCount, len(dLines))
 	}
