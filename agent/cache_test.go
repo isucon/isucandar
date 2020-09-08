@@ -51,7 +51,7 @@ func TestCacheCondition(t *testing.T) {
 		t.Fatalf("Stored invalid cache: %v", cache)
 	}
 
-	r, _ = agent.Get("/")
+	r, _ = agent.GET("/")
 	r.Header.Set("Authorization", "Bearer X-TOKEN")
 	agent.Do(context.Background(), r)
 	if cache := agent.CacheStore.Get(r); cache != nil {
@@ -68,7 +68,7 @@ func TestCacheCondition(t *testing.T) {
 		t.Fatalf("Stored invalid cache: %v", cache)
 	}
 
-	r, _ = agent.Get("/")
+	r, _ = agent.GET("/")
 	r.Header.Set("Cache-Control", "max-age=-1")
 	agent.Do(context.Background(), r)
 	if cache := agent.CacheStore.Get(r); cache != nil {
@@ -271,7 +271,7 @@ func TestCacheWithVary(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req, err := agent.Get("/")
+	req, err := agent.GET("/")
 	if err != nil {
 		t.Fatal(err)
 	}

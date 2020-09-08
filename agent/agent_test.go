@@ -60,7 +60,7 @@ func TestAgentRequest(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	req, err := agent.Get("/302redirect")
+	req, err := agent.GET("/302redirect")
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -84,23 +84,23 @@ func TestAgentMethods(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	r, _ := agent.Get("/")
+	r, _ := agent.GET("/")
 	if r.Method != http.MethodGet {
 		t.Fatalf("Method missmatch: %s", r.Method)
 	}
-	r, _ = agent.Post("/", nil)
+	r, _ = agent.POST("/", nil)
 	if r.Method != http.MethodPost {
 		t.Fatalf("Method missmatch: %s", r.Method)
 	}
-	r, _ = agent.Put("/", nil)
+	r, _ = agent.PUT("/", nil)
 	if r.Method != http.MethodPut {
 		t.Fatalf("Method missmatch: %s", r.Method)
 	}
-	r, _ = agent.Patch("/", nil)
+	r, _ = agent.PATCH("/", nil)
 	if r.Method != http.MethodPatch {
 		t.Fatalf("Method missmatch: %s", r.Method)
 	}
-	r, _ = agent.Delete("/", nil)
+	r, _ = agent.DELETE("/", nil)
 	if r.Method != http.MethodDelete {
 		t.Fatalf("Method missmatch: %s", r.Method)
 	}
@@ -115,7 +115,7 @@ func TestCacheControl(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req, err := agent.Get("/dot.gif")
+	req, err := agent.GET("/dot.gif")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestCacheControl(t *testing.T) {
 
 	// Second request
 
-	req, err = agent.Get("/dot.gif")
+	req, err = agent.GET("/dot.gif")
 	if err != nil {
 		t.Fatal(err)
 	}

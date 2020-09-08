@@ -79,7 +79,7 @@ func TestBrotliResponse(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	req, err := agent.Get("/br")
+	req, err := agent.GET("/br")
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -118,7 +118,7 @@ func TestGzipResponse(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	req, err := agent.Get("/gzip")
+	req, err := agent.GET("/gzip")
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}
@@ -157,7 +157,7 @@ func TestDeflateResponse(t *testing.T) {
 		t.Fatalf("%+v", err)
 	}
 
-	req, err := agent.Get("/deflate")
+	req, err := agent.GET("/deflate")
 	if err != nil {
 		t.Fatalf("%+v", err)
 	}

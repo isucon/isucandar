@@ -168,7 +168,7 @@ func (a *Agent) getResource(ctx context.Context, base *url.URL, ref string, init
 	}
 	refURL = base.ResolveReference(refURL)
 
-	req, err := a.Get(refURL.String())
+	req, err := a.GET(refURL.String())
 	if err != nil {
 		return nil, err
 	}

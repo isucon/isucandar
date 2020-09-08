@@ -146,23 +146,23 @@ func (a *Agent) NewRequest(method string, target string, body io.Reader) (*http.
 	return http.NewRequest(method, reqURL.String(), body)
 }
 
-func (a *Agent) Get(target string) (*http.Request, error) {
+func (a *Agent) GET(target string) (*http.Request, error) {
 	return a.NewRequest(http.MethodGet, target, nil)
 }
 
-func (a *Agent) Post(target string, body io.Reader) (*http.Request, error) {
+func (a *Agent) POST(target string, body io.Reader) (*http.Request, error) {
 	return a.NewRequest(http.MethodPost, target, body)
 }
 
-func (a *Agent) Put(target string, body io.Reader) (*http.Request, error) {
+func (a *Agent) PUT(target string, body io.Reader) (*http.Request, error) {
 	return a.NewRequest(http.MethodPut, target, body)
 }
 
-func (a *Agent) Patch(target string, body io.Reader) (*http.Request, error) {
+func (a *Agent) PATCH(target string, body io.Reader) (*http.Request, error) {
 	return a.NewRequest(http.MethodPatch, target, body)
 }
 
-func (a *Agent) Delete(target string, body io.Reader) (*http.Request, error) {
+func (a *Agent) DELETE(target string, body io.Reader) (*http.Request, error) {
 	return a.NewRequest(http.MethodDelete, target, body)
 }
 
