@@ -2,20 +2,16 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
-	"path/filepath"
-	"runtime"
 	"testing"
 )
 
 func newHTTPServer() *httptest.Server {
-	_, file, _, _ := runtime.Caller(1)
-	fs := http.FileServer(http.Dir(filepath.Join(filepath.Dir(file), "..", "example")))
-
 	r := httprouter.New()
 	r.GET("/dump", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		dump, err := httputil.DumpRequest(r, true)
@@ -46,9 +42,48 @@ func newHTTPServer() *httptest.Server {
 		http.Redirect(w, r, "/308", http.StatusPermanentRedirect)
 	})
 
-	r.NotFound = fs
-
 	return httptest.NewServer(r)
+}
+
+func TestAgent(t *testing.T) {
+	errOpt := func(_ *Agent) error {
+		return errors.New("invalid")
+	}
+
+	agent, err := NewAgent(errOpt)
+	if err == nil || agent != nil {
+		t.Fatal("error not occured")
+	}
+}
+
+func TestAgentClearCookie(t *testing.T) {
+	agent, err := NewAgent(WithBaseURL("http://example.com/"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	agent.HttpClient.Jar.SetCookies(agent.BaseURL, []*http.Cookie{
+		&http.Cookie{},
+	})
+	if len(agent.HttpClient.Jar.Cookies(agent.BaseURL)) != 1 {
+		t.Fatal("Set cookie failed")
+	}
+	agent.ClearCookie()
+	if len(agent.HttpClient.Jar.Cookies(agent.BaseURL)) != 0 {
+		t.Fatal("Clear  cookie failed")
+	}
+}
+
+func TestAgentNewRequest(t *testing.T) {
+	agent, err := NewAgent()
+	if err != nil {
+		t.Fatalf("%+v", err)
+	}
+
+	_, err = agent.NewRequest(http.MethodGet, "://invalid-uri", nil)
+	if err == nil {
+		t.Fatal("Not reached url parse error")
+	}
 }
 
 func TestAgentRequest(t *testing.T) {
@@ -103,39 +138,5 @@ func TestAgentMethods(t *testing.T) {
 	r, _ = agent.DELETE("/", nil)
 	if r.Method != http.MethodDelete {
 		t.Fatalf("Method missmatch: %s", r.Method)
-	}
-}
-
-func TestCacheControl(t *testing.T) {
-	srv := newHTTPServer()
-	defer srv.Close()
-
-	agent, err := NewAgent(WithBaseURL(srv.URL))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	req, err := agent.GET("/dot.gif")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err := agent.Do(context.Background(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Second request
-
-	req, err = agent.GET("/dot.gif")
-	if err != nil {
-		t.Fatal(err)
-	}
-	res, err = agent.Do(context.Background(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if res.StatusCode != 304 {
-		t.Fatalf("missmatch status code: %d", res.StatusCode)
 	}
 }

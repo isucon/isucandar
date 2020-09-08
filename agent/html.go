@@ -121,6 +121,8 @@ func (a *Agent) processHTMLLink(ctx context.Context, base *url.URL, token html.T
 		return a.getResource(ctx, base, href, "favicon")
 	case "apple-touch-icon", "apple-touch-icon-precomposed":
 		return a.getResource(ctx, base, href, "apple-touch-icon")
+	case "manifest":
+		return a.getResource(ctx, base, href, "manifest")
 	}
 
 	return nil, nil

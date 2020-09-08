@@ -86,6 +86,13 @@ func NewAgent(opts ...AgentOption) (*Agent, error) {
 	return agent, nil
 }
 
+func (a *Agent) ClearCookie() {
+	if a.HttpClient.Jar != nil {
+		jar, _ := cookiejar.New(&cookiejar.Options{})
+		a.HttpClient.Jar = jar
+	}
+}
+
 func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	req = req.WithContext(ctx)
 

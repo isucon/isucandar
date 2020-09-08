@@ -3,6 +3,7 @@ package failure
 import (
 	"context"
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 )
@@ -60,11 +61,14 @@ func TestErrorsHook(t *testing.T) {
 
 	n := int32(0)
 	cnt := &n
+	wg := sync.WaitGroup{}
 	set.Hook(func(err error) {
 		atomic.AddInt32(cnt, 1)
+		wg.Done()
 	})
 
 	for i := 0; i < 10; i++ {
+		wg.Add(1)
 		set.Add(fmt.Errorf("unknown error"))
 	}
 
@@ -74,6 +78,8 @@ func TestErrorsHook(t *testing.T) {
 	if table["unknown"] != 10 {
 		t.Errorf("missmatch unknown count: %d", table["unknown"])
 	}
+
+	wg.Wait()
 
 	if atomic.LoadInt32(cnt) != 10 {
 		t.Errorf("missmatch unknown hook count: %d", atomic.LoadInt32(cnt))
