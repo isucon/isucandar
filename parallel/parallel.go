@@ -44,9 +44,7 @@ func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
 	}
 
 	go func() {
-		defer func() {
-			l.done()
-		}()
+		defer l.done()
 		f(ctx)
 	}()
 
