@@ -240,6 +240,7 @@ worker.SetParallelism(20)
 // 初期化時、あるいはあとから同時実行数を設定できます。
 parallel := NewParallel(10)
 parallel.SetParallelism(5)
+// 制限値に 0 以下の値を与えると、並列数の上限を設けません。
 
 // 実行可能になるまで待ってから(列に並ぶ)、ジョブを実行します。
 // Context を渡すことができますが、 Context が終了しても Parallel はジョブを自動停止はしません。
@@ -265,7 +266,7 @@ parallel.Reset()
 
 #### 補足
 
-- 並列数は最大でも 5000 に設定されています。
+- 並列数に1を設定すると、 `Wait` 時に不安定な挙動を示す場合があります。
 
 ## Author
 

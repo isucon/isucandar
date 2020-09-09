@@ -10,10 +10,6 @@ var (
 	ErrLimiterClosed = errors.New("limiter closed")
 )
 
-const (
-	MaxParallelism = 5000
-)
-
 type Parallel struct {
 	limit  int32
 	count  int32
@@ -21,10 +17,6 @@ type Parallel struct {
 }
 
 func NewParallel(limit int32) *Parallel {
-	if limit <= 0 || limit > MaxParallelism {
-		limit = MaxParallelism
-	}
-
 	return &Parallel{
 		limit:  limit,
 		count:  0,
@@ -33,15 +25,15 @@ func NewParallel(limit int32) *Parallel {
 }
 
 func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
-	err := l.start()
+	err := l.start(ctx)
 	if err != nil {
 		return err
 	}
 
-	if ctx.Err() != nil {
-		l.done()
-		return nil
-	}
+	// if ctx.Err() != nil {
+	// 	l.done()
+	// 	return nil
+	// }
 
 	go func() {
 		defer l.done()
@@ -74,15 +66,13 @@ func (l *Parallel) Reset() {
 }
 
 func (l *Parallel) SetParallelism(limit int32) {
-	if limit < 1 || limit > MaxParallelism {
-		limit = MaxParallelism
-	}
 	atomic.StoreInt32(&l.limit, limit)
 }
 
-func (l *Parallel) start() error {
-	for atomic.LoadUint32(&l.closed) == 0 {
-		if count := atomic.LoadInt32(&l.count); count < atomic.LoadInt32(&l.limit) {
+func (l *Parallel) start(ctx context.Context) error {
+	for atomic.LoadUint32(&l.closed) == 0 && ctx.Err() == nil {
+		limit := atomic.LoadInt32(&l.limit)
+		if count := atomic.LoadInt32(&l.count); limit < 1 || count < limit {
 			if atomic.CompareAndSwapInt32(&l.count, count, count+1) {
 				return nil
 			}

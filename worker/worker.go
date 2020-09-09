@@ -58,7 +58,7 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	parallel := w.getLimiter()
+	parallel := w.getParallel()
 	parallel.Reset()
 	defer parallel.Close()
 
@@ -70,7 +70,6 @@ L:
 	for {
 		select {
 		case <-ctx.Done():
-			parallel.Close()
 			break L
 		default:
 			parallel.Do(ctx, work)
@@ -85,7 +84,7 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	parallel := w.getLimiter()
+	parallel := w.getParallel()
 	parallel.Reset()
 	defer parallel.Close()
 
@@ -99,7 +98,6 @@ L:
 	for i := 0; i < limit; i++ {
 		select {
 		case <-ctx.Done():
-			parallel.Close()
 			break L
 		default:
 			parallel.Do(ctx, work(i))
@@ -126,7 +124,7 @@ func (w *Worker) SetParallelism(paralellism int32) {
 	}
 }
 
-func (w *Worker) getLimiter() *parallel.Parallel {
+func (w *Worker) getParallel() *parallel.Parallel {
 	if w.parallel == nil {
 		p := atomic.LoadInt32(&w.parallelism)
 		parallel := parallel.NewParallel(p)

@@ -11,7 +11,7 @@ func TestParallel(t *testing.T) {
 	defer parallel.Close()
 
 	f := func(_ context.Context) {
-		<-time.After(1 * time.Millisecond)
+		time.Sleep(1 * time.Millisecond)
 	}
 
 	now := time.Now()
@@ -69,7 +69,7 @@ func TestParallelDoneNotLock(t *testing.T) {
 func TestParallelUnlimited(t *testing.T) {
 	parallel := NewParallel(0)
 
-	if parallel.limit != MaxParallelism {
+	if parallel.limit != 0 {
 		t.Fatalf("Invalid limit: %d", parallel.limit)
 	}
 }

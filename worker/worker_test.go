@@ -173,13 +173,11 @@ func TestWorkerSetParallelism(t *testing.T) {
 	}
 	worker.SetLoopCount(10)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		time.Sleep(1 * time.Millisecond)
-		cancel()
-	}()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+	defer cancel()
 
 	worker.Process(ctx)
+	worker.Wait()
 
 	if n := atomic.LoadInt32(&count); n > 1 {
 		t.Fatalf("Executed count: %d", n)
@@ -191,6 +189,7 @@ func TestWorkerSetParallelism(t *testing.T) {
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel2()
 	worker.Process(ctx2)
+	worker.Wait()
 
 	if n := atomic.LoadInt32(&count); n > 2 {
 		t.Fatalf("Executed count: %d", n)
