@@ -33,9 +33,10 @@ func TestParallel(t *testing.T) {
 	diff := latestExecutionTime.Sub(now)
 	mu.Unlock()
 
-	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
+	if diff >= (3 * time.Millisecond) {
 		t.Fatalf("process time: %s", diff)
 	}
+	t.Logf("Execution time: %s", diff)
 }
 
 func TestParallelClosed(t *testing.T) {
@@ -98,15 +99,20 @@ func TestParallelPanicOnNegative(t *testing.T) {
 func TestParallelSetParallelism(t *testing.T) {
 	parallel := NewParallel(0)
 
-	f := func(c context.Context) {
-		time.Sleep(1 * time.Millisecond)
-	}
-
 	check := func(expectTime time.Duration) {
 		parallel.Reset()
 
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		mu := sync.Mutex{}
+		var latestExecutionTime time.Time
+		f := func(c context.Context) {
+			time.Sleep(1 * time.Millisecond)
+			mu.Lock()
+			latestExecutionTime = time.Now()
+			mu.Unlock()
+		}
 
 		now := time.Now()
 		parallel.Do(ctx, f)
@@ -114,17 +120,21 @@ func TestParallelSetParallelism(t *testing.T) {
 		parallel.Do(ctx, f)
 		parallel.Do(ctx, f)
 		<-parallel.Wait()
-		diff := time.Now().Sub(now)
+
+		mu.Lock()
+		diff := latestExecutionTime.Sub(now)
+		mu.Unlock()
 
 		if diff > expectTime {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
+		t.Logf("Execution time: %s", diff)
 
 		<-parallel.Wait()
 	}
 
 	parallel.SetParallelism(2)
-	check(3*time.Millisecond + 500*time.Microsecond)
+	check(3 * time.Millisecond)
 
 	parallel.AddParallelism(-1)
 	check(6 * time.Millisecond)
