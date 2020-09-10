@@ -14,16 +14,14 @@ func TestParallel(t *testing.T) {
 		time.Sleep(1 * time.Millisecond)
 	}
 
-	now := time.Now()
-
 	ctx := context.TODO()
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
 
+	now := time.Now()
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
 	<-parallel.Wait()
-
 	diff := time.Now().Sub(now)
 
 	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
@@ -107,13 +105,13 @@ func TestParallelSetParallelism(t *testing.T) {
 		parallel.Do(ctx, f)
 		parallel.Do(ctx, f)
 		<-parallel.Wait()
-
-		parallel.Wait()
 		diff := time.Now().Sub(now)
 
 		if diff > expectTime {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
+
+		<-parallel.Wait()
 	}
 
 	parallel.SetParallelism(2)

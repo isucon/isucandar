@@ -49,12 +49,12 @@ func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
 func (l *Parallel) Wait() <-chan bool {
 	ch := make(chan bool)
 
-	go func() {
-		for atomic.LoadInt32(&l.count) > 0 {
+	go func(state uint32) {
+		for atomic.LoadInt32(&l.count) > 0 && atomic.LoadUint32(&l.state) == state {
 			// nop
 		}
 		close(ch)
-	}()
+	}(atomic.LoadUint32(&l.state))
 
 	return ch
 }
