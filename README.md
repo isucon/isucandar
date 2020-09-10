@@ -225,6 +225,8 @@ worker.SetLoopCount(20)
 // Worker は作成時または後から並列数を変更できます。
 worker, err := NewWorkder(f, WithMaxParallelism(10)/* あるいは WithUnlimitedParallelism() */)
 worker.SetParallelism(20)
+worker.AddParallelism(20)
+// 並列数の変更は実行中であっても反映されます。
 ```
 
 #### 補足
@@ -240,7 +242,9 @@ worker.SetParallelism(20)
 // 初期化時、あるいはあとから同時実行数を設定できます。
 parallel := NewParallel(10)
 parallel.SetParallelism(5)
+parallel.AddParallelism(5)
 // 制限値に 0 以下の値を与えると、並列数の上限を設けません。
+// 並列数の変更はジョブの起動中であっても構いません。
 
 // 実行可能になるまで待ってから(列に並ぶ)、ジョブを実行します。
 // Context を渡すことができますが、 Context が終了しても Parallel はジョブを自動停止はしません。

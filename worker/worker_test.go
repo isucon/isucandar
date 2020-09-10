@@ -158,7 +158,7 @@ func TestWorkerSetLoopCount(t *testing.T) {
 	}
 }
 
-func TestWorkerSetParallelism(t *testing.T) {
+func TestWorkerAddParallelism(t *testing.T) {
 	var worker *Worker
 
 	count := int32(0)
@@ -184,7 +184,7 @@ func TestWorkerSetParallelism(t *testing.T) {
 	}
 
 	atomic.StoreInt32(&count, 0)
-	worker.SetParallelism(2)
+	worker.AddParallelism(1)
 
 	ctx2, cancel2 := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel2()

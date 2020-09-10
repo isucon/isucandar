@@ -124,6 +124,13 @@ func (w *Worker) SetParallelism(paralellism int32) {
 	}
 }
 
+func (w *Worker) AddParallelism(paralellism int32) {
+	atomic.AddInt32(&w.parallelism, paralellism)
+	if w.parallel != nil {
+		w.parallel.AddParallelism(paralellism)
+	}
+}
+
 func (w *Worker) getParallel() *parallel.Parallel {
 	if w.parallel == nil {
 		p := atomic.LoadInt32(&w.parallelism)

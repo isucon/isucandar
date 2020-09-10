@@ -123,5 +123,5 @@ func TestParallelSetParallelism(t *testing.T) {
 	check(6 * time.Millisecond)
 
 	parallel.AddParallelism(-1)
-	check(1*time.Millisecond + 500*time.Microsecond)
+	check(2 * time.Millisecond)
 }
