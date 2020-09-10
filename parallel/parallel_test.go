@@ -23,11 +23,12 @@ func TestParallel(t *testing.T) {
 
 	ctx := context.TODO()
 
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+	parallel.Do(ctx, f)
+
 	now := time.Now()
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
 	<-parallel.Wait()
 
 	mu.Lock()
@@ -115,18 +116,19 @@ func TestParallelSetParallelism(t *testing.T) {
 			mu.Unlock()
 		}
 
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
 		now := time.Now()
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
+
 		<-parallel.Wait()
 
 		mu.Lock()
 		diff := latestExecutionTime.Sub(now)
 		mu.Unlock()
 
-		if diff > (expectTime + expectTime/2) {
+		if diff > expectTime {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
 		t.Logf("Pass with execution time: %s / %s", diff, expectTime)
