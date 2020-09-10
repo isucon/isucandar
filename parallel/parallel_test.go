@@ -2,6 +2,7 @@ package parallel
 
 import (
 	"context"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -33,7 +34,7 @@ func TestParallel(t *testing.T) {
 	diff := latestExecutionTime.Sub(now)
 	mu.Unlock()
 
-	if diff >= (3 * time.Millisecond) {
+	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
 		t.Fatalf("process time: %s", diff)
 	}
 	t.Logf("Execution time: %s", diff)
@@ -128,7 +129,7 @@ func TestParallelSetParallelism(t *testing.T) {
 		if diff > expectTime {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
-		t.Logf("Pass with execution time: %s", diff)
+		t.Logf("Pass with execution time: %s / %s", diff, expectTime)
 
 		<-parallel.Wait()
 	}
@@ -140,5 +141,9 @@ func TestParallelSetParallelism(t *testing.T) {
 	check(6 * time.Millisecond)
 
 	parallel.AddParallelism(-1)
-	check(2 * time.Millisecond)
+	unlimitedCount := 4 / runtime.GOMAXPROCS(0)
+	if unlimitedCount <= 0 {
+		unlimitedCount = 1
+	}
+	check(time.Duration(unlimitedCount)*time.Millisecond + (time.Duration(unlimitedCount) * 500 * time.Microsecond))
 }
