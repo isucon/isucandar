@@ -128,7 +128,7 @@ func TestParallelSetParallelism(t *testing.T) {
 		if diff > expectTime {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
-		t.Logf("Execution time: %s", diff)
+		t.Logf("Pass with execution time: %s", diff)
 
 		<-parallel.Wait()
 	}

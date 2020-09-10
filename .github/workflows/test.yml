@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 1
       - run: make test
         env:
-          GOMAXPROCS: 20
+          GOMAXPROCS: 4
       - uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
