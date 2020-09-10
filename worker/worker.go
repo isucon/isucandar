@@ -143,28 +143,28 @@ func (w *Worker) getParallel() *parallel.Parallel {
 
 func WithLoopCount(count int32) WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(&w.count, count)
+		w.SetLoopCount(count)
 		return nil
 	}
 }
 
 func WithInfinityLoop() WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(&w.count, int32(-1))
+		w.SetLoopCount(-1)
 		return nil
 	}
 }
 
 func WithMaxParallelism(parallelism int32) WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(&w.parallelism, parallelism)
+		w.SetParallelism(parallelism)
 		return nil
 	}
 }
 
 func WithUnlimitedParallelism() WorkerOption {
 	return func(w *Worker) error {
-		atomic.StoreInt32(&w.parallelism, int32(-1))
+		w.SetParallelism(-1)
 		return nil
 	}
 }
