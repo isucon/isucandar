@@ -126,7 +126,7 @@ func TestParallelSetParallelism(t *testing.T) {
 		diff := latestExecutionTime.Sub(now)
 		mu.Unlock()
 
-		if diff > expectTime {
+		if diff > (expectTime + expectTime/2) {
 			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
 		}
 		t.Logf("Pass with execution time: %s / %s", diff, expectTime)
