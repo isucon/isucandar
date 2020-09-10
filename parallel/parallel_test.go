@@ -26,7 +26,7 @@ func TestParallel(t *testing.T) {
 
 	diff := time.Now().Sub(now)
 
-	if diff >= 3*time.Millisecond {
+	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
 		t.Fatalf("process time: %s", diff)
 	}
 }
@@ -53,19 +53,6 @@ func TestParallelClosed(t *testing.T) {
 	}
 }
 
-func TestParallelDoneNotLock(t *testing.T) {
-	parallel := NewParallel(2)
-
-	parallel.done()
-	parallel.done()
-	parallel.done()
-	parallel.Close()
-	parallel.done()
-	parallel.done()
-
-	<-parallel.Wait()
-}
-
 func TestParallelUnlimited(t *testing.T) {
 	parallel := NewParallel(0)
 
@@ -85,6 +72,20 @@ func TestParallelCanceled(t *testing.T) {
 	})
 
 	<-parallel.Wait()
+}
+
+func TestParallelPanicOnNegative(t *testing.T) {
+	parallel := NewParallel(0)
+
+	var err interface{}
+	func() {
+		defer func() { err = recover() }()
+		parallel.done(parallel.state)
+	}()
+
+	if err != ErrNegativeCount {
+		t.Fatal(err)
+	}
 }
 
 func TestParallelSetParallelism(t *testing.T) {
@@ -118,9 +119,9 @@ func TestParallelSetParallelism(t *testing.T) {
 	parallel.SetParallelism(2)
 	check(3 * time.Millisecond)
 
-	parallel.SetParallelism(1)
+	parallel.AddParallelism(-1)
 	check(6 * time.Millisecond)
 
-	parallel.SetParallelism(0)
+	parallel.AddParallelism(-1)
 	check(2 * time.Millisecond)
 }
