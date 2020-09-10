@@ -2,6 +2,7 @@ package parallel
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 )
@@ -10,8 +11,13 @@ func TestParallel(t *testing.T) {
 	parallel := NewParallel(2)
 	defer parallel.Close()
 
+	mu := sync.Mutex{}
+	var latestExecutionTime time.Time
 	f := func(_ context.Context) {
 		time.Sleep(1 * time.Millisecond)
+		mu.Lock()
+		defer mu.Unlock()
+		latestExecutionTime = time.Now()
 	}
 
 	ctx := context.TODO()
@@ -22,7 +28,10 @@ func TestParallel(t *testing.T) {
 	parallel.Do(ctx, f)
 	parallel.Do(ctx, f)
 	<-parallel.Wait()
-	diff := time.Now().Sub(now)
+
+	mu.Lock()
+	diff := latestExecutionTime.Sub(now)
+	mu.Unlock()
 
 	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
 		t.Fatalf("process time: %s", diff)
