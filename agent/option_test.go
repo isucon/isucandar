@@ -1,13 +1,14 @@
 package agent
 
 import (
-	"github.com/rosylilly/isucandar/failure"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/rosylilly/isucandar/failure"
 )
 
 func TestNoCookie(t *testing.T) {

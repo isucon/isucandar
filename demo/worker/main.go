@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/rosylilly/isucandar/worker"
 	"time"
+
+	"github.com/rosylilly/isucandar/worker"
 )
 
 func main() {

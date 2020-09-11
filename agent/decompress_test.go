@@ -5,13 +5,14 @@ import (
 	"compress/flate"
 	"compress/gzip"
 	"context"
-	"github.com/andybalholm/brotli"
-	"github.com/julienschmidt/httprouter"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/andybalholm/brotli"
+	"github.com/julienschmidt/httprouter"
 )
 
 func newCompressHTTPServer() *httptest.Server {

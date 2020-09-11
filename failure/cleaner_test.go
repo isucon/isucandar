@@ -2,9 +2,10 @@ package failure
 
 import (
 	"fmt"
-	"golang.org/x/xerrors"
 	"strings"
 	"testing"
+
+	"golang.org/x/xerrors"
 )
 
 func TestBacktraceCleaner(t *testing.T) {

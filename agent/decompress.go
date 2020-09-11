@@ -3,9 +3,10 @@ package agent
 import (
 	"compress/flate"
 	"compress/gzip"
-	"github.com/dsnet/compress/brotli"
 	"io"
 	"net/http"
+
+	"github.com/dsnet/compress/brotli"
 )
 
 func decompress(res *http.Response) (*http.Response, error) {

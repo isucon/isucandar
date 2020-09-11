@@ -2,8 +2,9 @@ package worker
 
 import (
 	"context"
-	"github.com/rosylilly/isucandar/parallel"
 	"sync/atomic"
+
+	"github.com/rosylilly/isucandar/parallel"
 )
 
 var (

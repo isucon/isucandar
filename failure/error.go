@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/xerrors"
 	"net"
+
+	"golang.org/x/xerrors"
 )
 
 var (

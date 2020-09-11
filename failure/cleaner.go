@@ -2,10 +2,11 @@ package failure
 
 import (
 	"fmt"
-	"golang.org/x/xerrors"
 	"runtime"
 	"strconv"
 	"strings"
+
+	"golang.org/x/xerrors"
 )
 
 var (

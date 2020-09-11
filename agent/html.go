@@ -2,14 +2,15 @@ package agent
 
 import (
 	"context"
-	"github.com/rosylilly/isucandar/failure"
-	"golang.org/x/net/html"
-	"golang.org/x/net/html/atom"
 	"io"
 	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
+
+	"github.com/rosylilly/isucandar/failure"
+	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 type Resource struct {

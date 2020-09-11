@@ -2,12 +2,13 @@ package agent
 
 import (
 	"bytes"
-	"github.com/pquerna/cachecontrol/cacheobject"
 	"io/ioutil"
 	"net/http"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/pquerna/cachecontrol/cacheobject"
 )
 
 var (

@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/rosylilly/isucandar/pubsub"
-	"github.com/rosylilly/isucandar/worker"
 	"sync"
 	"time"
+
+	"github.com/rosylilly/isucandar/pubsub"
+	"github.com/rosylilly/isucandar/worker"
 )
 
 func launchWorker(ctx context.Context, pubsub *pubsub.PubSub, format string) error {

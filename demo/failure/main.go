@@ -3,8 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/rosylilly/isucandar/failure"
 	"math/rand"
+
+	"github.com/rosylilly/isucandar/failure"
 )
 
 var (
