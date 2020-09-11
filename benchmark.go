@@ -16,15 +16,15 @@ var (
 	ErrValidation failure.StringCode = "validation"
 )
 
-type BenchmarkStep func(context.Context, *Result) error
-type BenchmarkErrorHook func(error, *Result)
+type BenchmarkStepFunc func(context.Context, *BenchmarkStep) error
+type BenchmarkErrorHook func(error, *BenchmarkStep)
 
 type Benchmark struct {
 	mu sync.Mutex
 
-	prepareSteps    []BenchmarkStep
-	loadSteps       []BenchmarkStep
-	validationSteps []BenchmarkStep
+	prepareSteps    []BenchmarkStepFunc
+	loadSteps       []BenchmarkStepFunc
+	validationSteps []BenchmarkStepFunc
 
 	prepateTimeout time.Duration
 	loadTimeout    time.Duration
@@ -35,9 +35,9 @@ type Benchmark struct {
 func NewBenchmark(opts ...BenchmarkOption) (*Benchmark, error) {
 	benchmark := &Benchmark{
 		mu:              sync.Mutex{},
-		prepareSteps:    []BenchmarkStep{},
-		loadSteps:       []BenchmarkStep{},
-		validationSteps: []BenchmarkStep{},
+		prepareSteps:    []BenchmarkStepFunc{},
+		loadSteps:       []BenchmarkStepFunc{},
+		validationSteps: []BenchmarkStepFunc{},
 		prepateTimeout:  time.Duration(0),
 		loadTimeout:     time.Duration(0),
 		ignoreCodes:     []failure.Code{},
@@ -53,15 +53,21 @@ func NewBenchmark(opts ...BenchmarkOption) (*Benchmark, error) {
 	return benchmark, nil
 }
 
-func (b *Benchmark) Start(parent context.Context) *Result {
+func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 	ctx, cancel := context.WithCancel(parent)
-	result := newResult(ctx, cancel)
-	defer result.Cancel()
+	result := newBenchmarkResult(ctx)
+	defer cancel()
+
+	step := &BenchmarkStep{
+		mu:     sync.RWMutex{},
+		result: result,
+		cancel: cancel,
+	}
 
 	for _, hook := range b.errorHooks {
 		func(hook BenchmarkErrorHook) {
 			result.Errors.Hook(func(err error) {
-				hook(err, result)
+				hook(err, step)
 			})
 		}(hook)
 	}
@@ -72,6 +78,7 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 		loadCancel context.CancelFunc
 	)
 
+	step.setErrorCode(ErrPrepare)
 	for _, prepare := range b.prepareSteps {
 		var (
 			prepareCtx    context.Context
@@ -85,13 +92,13 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 		}
 		defer prepareCancel()
 
-		if err := panicWrapper(func() error { return prepare(prepareCtx, result) }); err != nil {
+		if err := panicWrapper(func() error { return prepare(prepareCtx, step) }); err != nil {
 			for _, ignore := range b.ignoreCodes {
 				if failure.IsCode(err, ignore) {
 					goto Result
 				}
 			}
-			result.Errors.Add(failure.NewError(ErrPrepare, err))
+			step.AddError(err)
 			goto Result
 		}
 	}
@@ -102,6 +109,7 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 		goto Result
 	}
 
+	step.setErrorCode(ErrLoad)
 	if b.loadTimeout > 0 {
 		loadCtx, loadCancel = context.WithTimeout(ctx, b.loadTimeout)
 	} else {
@@ -110,15 +118,15 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 	defer loadCancel()
 
 	for _, load := range b.loadSteps {
-		func(f BenchmarkStep) {
+		func(f BenchmarkStepFunc) {
 			loadParallel.Do(loadCtx, func(c context.Context) {
-				if err := panicWrapper(func() error { return f(c, result) }); err != nil {
+				if err := panicWrapper(func() error { return f(c, step) }); err != nil {
 					for _, ignore := range b.ignoreCodes {
 						if failure.IsCode(err, ignore) {
 							return
 						}
 					}
-					result.Errors.Add(failure.NewError(ErrLoad, err))
+					step.AddError(err)
 				}
 			})
 		}(load)
@@ -131,21 +139,23 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 		goto Result
 	}
 
+	step.setErrorCode(ErrValidation)
 	for _, validation := range b.validationSteps {
-		if err := panicWrapper(func() error { return validation(ctx, result) }); err != nil {
+		if err := panicWrapper(func() error { return validation(ctx, step) }); err != nil {
 			for _, ignore := range b.ignoreCodes {
 				if failure.IsCode(err, ignore) {
 					goto Result
 				}
 			}
-			result.Errors.Add(failure.NewError(ErrValidation, err))
+			step.AddError(err)
 			goto Result
 		}
 	}
 
 Result:
 	cancel()
-	result.wait()
+	step.wait()
+	step.setErrorCode(nil)
 
 	return result
 }
@@ -157,21 +167,21 @@ func (b *Benchmark) OnError(f BenchmarkErrorHook) {
 	b.errorHooks = append(b.errorHooks, f)
 }
 
-func (b *Benchmark) Prepare(f BenchmarkStep) {
+func (b *Benchmark) Prepare(f BenchmarkStepFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.prepareSteps = append(b.prepareSteps, f)
 }
 
-func (b *Benchmark) Load(f BenchmarkStep) {
+func (b *Benchmark) Load(f BenchmarkStepFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
 	b.loadSteps = append(b.loadSteps, f)
 }
 
-func (b *Benchmark) Validation(f BenchmarkStep) {
+func (b *Benchmark) Validation(f BenchmarkStepFunc) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
