@@ -4,11 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httputil"
 	"testing"
+
+	"github.com/julienschmidt/httprouter"
 )
 
 func newHTTPServer() *httptest.Server {
@@ -83,6 +84,11 @@ func TestAgentNewRequest(t *testing.T) {
 	_, err = agent.NewRequest(http.MethodGet, "://invalid-uri", nil)
 	if err == nil {
 		t.Fatal("Not reached url parse error")
+	}
+
+	_, err = agent.NewRequest("bad method", "/", nil)
+	if err == nil {
+		t.Fatalf("Not reached method name error")
 	}
 }
 
