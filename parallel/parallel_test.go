@@ -23,22 +23,27 @@ func TestParallel(t *testing.T) {
 
 	ctx := context.TODO()
 
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-	parallel.Do(ctx, f)
-
 	now := time.Now()
+	ch := make(chan bool)
+	go func() {
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		parallel.Do(ctx, f)
+		close(ch)
+	}()
+	<-ch
 	<-parallel.Wait()
 
 	mu.Lock()
 	diff := latestExecutionTime.Sub(now)
 	mu.Unlock()
 
-	if diff >= (3*time.Millisecond + 500*time.Microsecond) {
-		t.Fatalf("process time: %s", diff)
+	if diff >= 3*time.Millisecond {
+		t.Fatalf("Execution time: %s", diff)
+	} else {
+		t.Logf("Execution time: %s", diff)
 	}
-	t.Logf("Execution time: %s", diff)
 }
 
 func TestParallelClosed(t *testing.T) {
@@ -116,12 +121,16 @@ func TestParallelSetParallelism(t *testing.T) {
 			mu.Unlock()
 		}
 
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
 		now := time.Now()
-
+		ch := make(chan bool)
+		go func() {
+			parallel.Do(ctx, f)
+			parallel.Do(ctx, f)
+			parallel.Do(ctx, f)
+			parallel.Do(ctx, f)
+			close(ch)
+		}()
+		<-ch
 		<-parallel.Wait()
 
 		mu.Lock()

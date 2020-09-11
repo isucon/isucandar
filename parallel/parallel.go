@@ -38,8 +38,14 @@ func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
 		return err
 	}
 
+	atomic.AddInt32(&l.count, 1)
 	go func(state uint32) {
 		defer l.done(state)
+		defer func() {
+			if atomic.LoadUint32(&l.state) == state {
+				atomic.AddInt32(&l.count, -1)
+			}
+		}()
 		f(ctx)
 	}(atomic.LoadUint32(&l.state))
 
@@ -104,5 +110,5 @@ func (l *Parallel) isRunning(ctx context.Context) bool {
 func (l *Parallel) isLimitKept() (int32, bool) {
 	limit := atomic.LoadInt32(&l.limit)
 	count := atomic.LoadInt32(&l.count)
-	return count, limit < 1 || count < limit
+	return count, limit < 1 || count < (limit*2)
 }
