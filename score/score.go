@@ -15,8 +15,8 @@ type Score struct {
 	Table ScoreTable
 
 	total  sumTable
+	count  int32
 	queue  chan ScoreTag
-	wg     sync.WaitGroup
 	closer sync.Once
 }
 
@@ -24,8 +24,8 @@ func NewScore(ctx context.Context) *Score {
 	score := &Score{
 		Table:  make(ScoreTable),
 		total:  make(sumTable),
+		count:  0,
 		queue:  make(chan ScoreTag),
-		wg:     sync.WaitGroup{},
 		closer: sync.Once{},
 	}
 
@@ -44,8 +44,8 @@ func (s *Score) add(tag ScoreTag) {
 }
 
 func (s *Score) collect(ctx context.Context) {
-	s.wg.Add(1)
-	defer s.wg.Done()
+	atomic.AddInt32(&s.count, 1)
+	defer atomic.AddInt32(&s.count, -1)
 
 	go func() {
 		<-ctx.Done()
@@ -54,6 +54,7 @@ func (s *Score) collect(ctx context.Context) {
 
 	for tag := range s.queue {
 		s.add(tag)
+		atomic.AddInt32(&s.count, -1)
 	}
 }
 
@@ -65,10 +66,12 @@ func (s *Score) Add(tag ScoreTag) {
 	// catch error of "send on closed channel"
 	defer func() { recover() }()
 	s.queue <- tag
+	atomic.AddInt32(&s.count, 1)
 }
 
 func (s *Score) Wait() {
-	s.wg.Wait()
+	for atomic.LoadInt32(&s.count) > 0 {
+	}
 }
 
 func (s *Score) Done() {
