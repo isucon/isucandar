@@ -1,11 +1,18 @@
-GOMAXPROCS:=$(shell nproc)
+GOTIMEOUT?=20s
+GOARGS?=-race
+GOMAXPROCS?=$(shell nproc)
 
 .PHONY: test
 test:
 	@mkdir -p tmp
 	@echo "mode: atomic" > tmp/cover.out
 	@for d in $(shell go list ./... | grep -v vendor | grep -v demo); do \
-		go test -race -timeout 20s -coverprofile=tmp/pkg.out -covermode=atomic "$$d" || exit 1; \
+		GOMAXPROCS=$(GOMAXPROCS) \
+			go test \
+			$(GOARGS) \
+			-timeout $(GOTIMEOUT) \
+			-coverprofile=tmp/pkg.out -covermode=atomic \
+			"$$d" || exit 1; \
 		tail -n +2 tmp/pkg.out >> tmp/cover.out && \
 		rm tmp/pkg.out; \
 	done
@@ -14,7 +21,12 @@ test:
 .PHONY: bench
 bench:
 	@for d in $(shell go list ./... | grep -v vendor | grep -v demo); do \
-		GOMAXPROCS=$(GOMAXPROCS) go test -bench=^Benchmark -benchmem -race "$$d" || exit 1; \
+		GOMAXPROCS=$(GOMAXPROCS) \
+			go test \
+			$(GOARGS) \
+			-bench=^Benchmark \
+			-benchmem \
+			"$$d" || exit 1; \
 	done
 
 .PHONY: demo
