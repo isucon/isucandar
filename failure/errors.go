@@ -3,13 +3,14 @@ package failure
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 )
 
 type ErrorsHook func(error)
 
 type Errors struct {
-	wg     sync.WaitGroup
 	mu     sync.RWMutex
+	count  int32
 	closer sync.Once
 	errors []error
 	queue  chan error
@@ -18,12 +19,15 @@ type Errors struct {
 
 func NewErrors(ctx context.Context) *Errors {
 	set := &Errors{
-		wg:     sync.WaitGroup{},
 		mu:     sync.RWMutex{},
+		count:  int32(0),
 		closer: sync.Once{},
 		errors: make([]error, 0, 0),
 		queue:  make(chan error),
-		hook:   func(err error) {},
+	}
+
+	set.hook = func(err error) {
+		atomic.AddInt32(&set.count, -1)
 	}
 
 	go set.collect(ctx)
@@ -32,8 +36,8 @@ func NewErrors(ctx context.Context) *Errors {
 }
 
 func (s *Errors) collect(ctx context.Context) {
-	s.wg.Add(1)
-	defer s.wg.Done()
+	atomic.AddInt32(&s.count, 1)
+	defer atomic.AddInt32(&s.count, -1)
 
 	go func() {
 		<-ctx.Done()
@@ -52,6 +56,7 @@ func (s *Errors) collect(ctx context.Context) {
 func (s *Errors) Add(err error) {
 	defer func() { recover() }()
 	s.queue <- err
+	atomic.AddInt32(&s.count, 1)
 }
 
 func (s *Errors) Hook(hook ErrorsHook) {
@@ -64,7 +69,8 @@ func (s *Errors) Hook(hook ErrorsHook) {
 }
 
 func (s *Errors) Wait() {
-	s.wg.Wait()
+	for atomic.LoadInt32(&s.count) > 0 {
+	}
 }
 
 func (s *Errors) Close() {
