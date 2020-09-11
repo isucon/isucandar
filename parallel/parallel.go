@@ -32,13 +32,19 @@ func NewParallel(limit int32) *Parallel {
 	}
 }
 
+func (l *Parallel) CurrentLimit() int32 {
+	return atomic.LoadInt32(&l.limit)
+}
+
 func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
+	atomic.AddInt32(&l.count, 1)
+
 	err := l.start(ctx)
 	if err != nil {
+		atomic.AddInt32(&l.count, -1)
 		return err
 	}
 
-	atomic.AddInt32(&l.count, 1)
 	go func(state uint32) {
 		defer l.done(state)
 		defer func() {
@@ -52,17 +58,11 @@ func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
 	return nil
 }
 
-func (l *Parallel) Wait() <-chan bool {
-	ch := make(chan bool)
-
-	go func(state uint32) {
-		for atomic.LoadInt32(&l.count) > 0 && atomic.LoadUint32(&l.state) == state {
-			// nop
-		}
-		close(ch)
-	}(atomic.LoadUint32(&l.state))
-
-	return ch
+func (l *Parallel) Wait() {
+	state := atomic.LoadUint32(&l.state)
+	for atomic.LoadInt32(&l.count) > 0 && atomic.LoadUint32(&l.state) == state {
+		// nop
+	}
 }
 
 func (l *Parallel) Close() {

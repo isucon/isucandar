@@ -123,7 +123,7 @@ func (b *Benchmark) Start(parent context.Context) *Result {
 			})
 		}(load)
 	}
-	<-loadParallel.Wait()
+	loadParallel.Wait()
 
 	result.Errors.Wait()
 
