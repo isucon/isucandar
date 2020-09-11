@@ -25,3 +25,4 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./tmp/cover.out
+      - run: make demo
