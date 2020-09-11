@@ -2,7 +2,6 @@ package score
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 )
 
@@ -17,7 +16,7 @@ type Score struct {
 	total  sumTable
 	count  int32
 	queue  chan ScoreTag
-	closer sync.Once
+	closed uint32
 }
 
 func NewScore(ctx context.Context) *Score {
@@ -26,7 +25,7 @@ func NewScore(ctx context.Context) *Score {
 		total:  make(sumTable),
 		count:  0,
 		queue:  make(chan ScoreTag),
-		closer: sync.Once{},
+		closed: 0,
 	}
 
 	go score.collect(ctx)
@@ -44,18 +43,16 @@ func (s *Score) add(tag ScoreTag) {
 }
 
 func (s *Score) collect(ctx context.Context) {
-	atomic.AddInt32(&s.count, 1)
-	defer atomic.AddInt32(&s.count, -1)
-
 	go func() {
 		<-ctx.Done()
-		s.closer.Do(func() { close(s.queue) })
+		s.Close()
 	}()
 
 	for tag := range s.queue {
 		s.add(tag)
 		atomic.AddInt32(&s.count, -1)
 	}
+	atomic.AddInt32(&s.count, -1)
 }
 
 func (s *Score) Set(tag ScoreTag, mag int64) {
@@ -63,10 +60,17 @@ func (s *Score) Set(tag ScoreTag, mag int64) {
 }
 
 func (s *Score) Add(tag ScoreTag) {
-	// catch error of "send on closed channel"
-	defer func() { recover() }()
-	s.queue <- tag
-	atomic.AddInt32(&s.count, 1)
+	if atomic.CompareAndSwapUint32(&s.closed, 0, 0) {
+		s.queue <- tag
+		atomic.AddInt32(&s.count, 1)
+	}
+}
+
+func (s *Score) Close() {
+	if atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
+		atomic.AddInt32(&s.count, 1)
+		close(s.queue)
+	}
 }
 
 func (s *Score) Wait() {
@@ -75,7 +79,7 @@ func (s *Score) Wait() {
 }
 
 func (s *Score) Done() {
-	s.closer.Do(func() { close(s.queue) })
+	s.Close()
 	s.Wait()
 }
 

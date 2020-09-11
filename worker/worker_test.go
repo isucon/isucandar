@@ -233,3 +233,19 @@ func TestWorkerAddParallelism(t *testing.T) {
 		t.Fatalf("Executed count: %d", n)
 	}
 }
+
+func BenchmarkWorker(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	nop := func(_ context.Context, _ int) {}
+	worker, err := NewWorker(nop, WithLoopCount(int32(b.N)))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	worker.Process(ctx)
+	worker.Wait()
+	b.StopTimer()
+}

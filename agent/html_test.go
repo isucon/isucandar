@@ -37,10 +37,6 @@ const exampleHTMLDoc = `
 		<script src="/async.js" async></script>
 		インラインスクリプトは無視する
 		<script>console.log("inline script");</script>
-
-		絶対 URL の指定をした場合
-		<script src="https://example.com/"></script>
-		<script src="http://example.com/"></script>
 	</body>
 </html>
 `
@@ -67,7 +63,7 @@ func TestHTMLParse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(resources) != 13 {
+	if len(resources) != 11 {
 		for k, _ := range resources {
 			t.Log(k)
 		}
@@ -86,8 +82,6 @@ func TestHTMLParse(t *testing.T) {
 		srv.URL + "/apple-icon-precomposed.png",
 		srv.URL + "/apple-icon.png",
 		srv.URL + "/manifest.webmanifest",
-		"https://example.com/",
-		"http://example.com/",
 	}
 
 	for _, eURL := range expects {
@@ -121,7 +115,7 @@ func BenchmarkHTMLParse(b *testing.B) {
 			b.Fatal(err)
 		}
 
-		if len(resources) != 12 {
+		if len(resources) != 11 {
 			for k, _ := range resources {
 				b.Log(k)
 			}
@@ -139,8 +133,6 @@ func BenchmarkHTMLParse(b *testing.B) {
 			srv.URL + "/favicon.ico",
 			srv.URL + "/apple-icon-precomposed.png",
 			srv.URL + "/apple-icon.png",
-			"https://example.com/",
-			"http://example.com/",
 		}
 
 		for _, eURL := range expects {

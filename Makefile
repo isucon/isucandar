@@ -13,7 +13,9 @@ test:
 
 .PHONY: bench
 bench:
-	@GOMAXPROCS=$(GOMAXPROCS) go test -bench=. -benchmem ./...
+	@for d in $(shell go list ./... | grep -v vendor | grep -v demo); do \
+		GOMAXPROCS=$(GOMAXPROCS) go test -bench=^Benchmark -benchmem -race "$$d" || exit 1; \
+	done
 
 .PHONY: demo
 demo:

@@ -85,3 +85,13 @@ func Is(err, target error) bool {
 func As(err error, target interface{}) bool {
 	return xerrors.As(err, target)
 }
+
+func IsCode(err error, code Code) bool {
+	for _, c := range GetErrorCodes(err) {
+		if c == code.ErrorCode() {
+			return true
+		}
+	}
+
+	return false
+}

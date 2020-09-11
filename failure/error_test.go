@@ -135,3 +135,19 @@ func TestErrorFrames(t *testing.T) {
 		t.Fatalf("expected %d but got %d", eLineCount, len(dLines))
 	}
 }
+
+func TestIsCode(t *testing.T) {
+	err := NewError(errApplication, NewError(errTemporary, fmt.Errorf("foo")))
+
+	if !IsCode(err, errApplication) {
+		t.Fatal(err)
+	}
+
+	if !IsCode(err, errTemporary) {
+		t.Fatal(err)
+	}
+
+	if IsCode(err, UnknownErrorCode) {
+		t.Fatal(err)
+	}
+}

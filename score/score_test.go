@@ -33,7 +33,7 @@ func TestScoreWithContext(t *testing.T) {
 
 	cancel()
 
-	score.Wait()
+	score.Done()
 
 	score.Add("d")
 }

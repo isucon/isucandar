@@ -149,3 +149,18 @@ func TestParallelSetParallelism(t *testing.T) {
 	}
 	check(time.Duration(unlimitedCount)*time.Millisecond + (time.Duration(unlimitedCount) * 500 * time.Microsecond))
 }
+
+func BenchmarkParallel(b *testing.B) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	parallel := NewParallel(-1)
+	nop := func(_ context.Context) {}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		parallel.Do(ctx, nop)
+	}
+	<-parallel.Wait()
+	b.StopTimer()
+}

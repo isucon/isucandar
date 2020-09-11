@@ -31,14 +31,14 @@ func TestErrors(t *testing.T) {
 
 func TestErrorsClosed(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	set := NewErrors(ctx)
 
 	set.Add(fmt.Errorf("test"))
 	set.Add(fmt.Errorf("test"))
 	set.Add(fmt.Errorf("test"))
 
-	cancel()
-	set.Wait()
+	set.Done()
 
 	set.Add(fmt.Errorf("test"))
 
@@ -80,4 +80,19 @@ func TestErrorsHook(t *testing.T) {
 	if atomic.LoadInt32(cnt) != 10 {
 		t.Errorf("missmatch unknown hook count: %d", atomic.LoadInt32(cnt))
 	}
+}
+
+func BenchmarkErrorsAdd(b *testing.B) {
+	err := fmt.Errorf("test")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	set := NewErrors(ctx)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		set.Add(err)
+	}
+	set.Done()
+	b.StopTimer()
 }

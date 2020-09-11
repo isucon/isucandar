@@ -11,7 +11,7 @@ type ErrorsHook func(error)
 type Errors struct {
 	mu     sync.RWMutex
 	count  int32
-	closer sync.Once
+	closed uint32
 	errors []error
 	queue  chan error
 	hook   ErrorsHook
@@ -21,7 +21,7 @@ func NewErrors(ctx context.Context) *Errors {
 	set := &Errors{
 		mu:     sync.RWMutex{},
 		count:  int32(0),
-		closer: sync.Once{},
+		closed: uint32(0),
 		errors: make([]error, 0, 0),
 		queue:  make(chan error),
 	}
@@ -36,9 +36,6 @@ func NewErrors(ctx context.Context) *Errors {
 }
 
 func (s *Errors) collect(ctx context.Context) {
-	atomic.AddInt32(&s.count, 1)
-	defer atomic.AddInt32(&s.count, -1)
-
 	go func() {
 		<-ctx.Done()
 		s.Close()
@@ -51,12 +48,14 @@ func (s *Errors) collect(ctx context.Context) {
 
 		go s.hook(err)
 	}
+	atomic.AddInt32(&s.count, -1)
 }
 
 func (s *Errors) Add(err error) {
-	defer func() { recover() }()
-	s.queue <- err
-	atomic.AddInt32(&s.count, 1)
+	if atomic.CompareAndSwapUint32(&s.closed, 0, 0) {
+		s.queue <- err
+		atomic.AddInt32(&s.count, 1)
+	}
 }
 
 func (s *Errors) Hook(hook ErrorsHook) {
@@ -74,7 +73,10 @@ func (s *Errors) Wait() {
 }
 
 func (s *Errors) Close() {
-	s.closer.Do(func() { close(s.queue) })
+	if atomic.CompareAndSwapUint32(&s.closed, 0, 1) {
+		atomic.AddInt32(&s.count, 1)
+		close(s.queue)
+	}
 }
 
 func (s *Errors) Done() {
