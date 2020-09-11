@@ -17,8 +17,8 @@ func TestParallel(t *testing.T) {
 	exited := uint32(0)
 	f := func(_ context.Context) {
 		atomic.AddInt32(&pcount, 1)
+		defer atomic.AddInt32(&pcount, -1)
 		time.Sleep(10 * time.Millisecond)
-		atomic.AddInt32(&pcount, -1)
 	}
 
 	ctx := context.TODO()
@@ -119,8 +119,9 @@ func TestParallelSetParallelism(t *testing.T) {
 		exited := uint32(0)
 		f := func(c context.Context) {
 			atomic.AddInt32(&pcount, 1)
-			time.Sleep(1 * time.Millisecond)
-			atomic.AddInt32(&pcount, -1)
+			defer atomic.AddInt32(&pcount, -1)
+
+			time.Sleep(10 * time.Millisecond)
 		}
 
 		parallel.Do(ctx, f)
