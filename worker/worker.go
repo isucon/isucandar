@@ -14,10 +14,9 @@ type WorkerFunc func(context.Context, int)
 type WorkerOption func(*Worker) error
 
 type Worker struct {
-	workFunc    WorkerFunc
-	count       int32
-	parallelism int32
-	parallel    *parallel.Parallel
+	workFunc WorkerFunc
+	count    int32
+	parallel *parallel.Parallel
 }
 
 func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
@@ -29,9 +28,9 @@ func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
 	}
 
 	worker := &Worker{
-		workFunc:    f,
-		count:       count,
-		parallelism: parallelism,
+		workFunc: f,
+		count:    count,
+		parallel: parallel.NewParallel(parallelism),
 	}
 
 	for _, opt := range opts {
@@ -58,7 +57,7 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	parallel := w.getParallel()
+	parallel := w.parallel
 	parallel.Reset()
 	defer parallel.Close()
 
@@ -84,7 +83,7 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	parallel := w.getParallel()
+	parallel := w.parallel
 	parallel.Reset()
 	defer parallel.Close()
 
@@ -118,27 +117,11 @@ func (w *Worker) SetLoopCount(count int32) {
 }
 
 func (w *Worker) SetParallelism(paralellism int32) {
-	atomic.StoreInt32(&w.parallelism, paralellism)
-	if w.parallel != nil {
-		w.parallel.SetParallelism(paralellism)
-	}
+	w.parallel.SetParallelism(paralellism)
 }
 
 func (w *Worker) AddParallelism(paralellism int32) {
-	atomic.AddInt32(&w.parallelism, paralellism)
-	if w.parallel != nil {
-		w.parallel.AddParallelism(paralellism)
-	}
-}
-
-func (w *Worker) getParallel() *parallel.Parallel {
-	if w.parallel == nil {
-		p := atomic.LoadInt32(&w.parallelism)
-		parallel := parallel.NewParallel(p)
-		w.parallel = parallel
-	}
-
-	return w.parallel
+	w.parallel.AddParallelism(paralellism)
 }
 
 func WithLoopCount(count int32) WorkerOption {
