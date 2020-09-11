@@ -12,17 +12,17 @@ type exampleScenario struct {
 	validation uint32
 }
 
-func (e *exampleScenario) Prepare(_ context.Context, r *Result) error {
+func (e *exampleScenario) Prepare(_ context.Context, _ *BenchmarkStep) error {
 	atomic.StoreUint32(&e.prepare, 1)
 	return nil
 }
 
-func (e *exampleScenario) Load(_ context.Context, r *Result) error {
+func (e *exampleScenario) Load(_ context.Context, _ *BenchmarkStep) error {
 	atomic.StoreUint32(&e.load, 1)
 	return nil
 }
 
-func (e *exampleScenario) Validation(_ context.Context, r *Result) error {
+func (e *exampleScenario) Validation(_ context.Context, _ *BenchmarkStep) error {
 	atomic.StoreUint32(&e.validation, 1)
 	return nil
 }

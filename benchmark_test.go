@@ -21,7 +21,7 @@ func newBenchmark(opts ...BenchmarkOption) *Benchmark {
 
 	benchmark.IgnoreErrorCode(ErrIgnore)
 
-	benchmark.Prepare(func(ctx context.Context, r *Result) error {
+	benchmark.Prepare(func(ctx context.Context, s *BenchmarkStep) error {
 		time.Sleep(1 * time.Microsecond)
 		select {
 		case <-ctx.Done():
@@ -31,7 +31,7 @@ func newBenchmark(opts ...BenchmarkOption) *Benchmark {
 		}
 	})
 
-	benchmark.Load(func(ctx context.Context, r *Result) error {
+	benchmark.Load(func(ctx context.Context, s *BenchmarkStep) error {
 		time.Sleep(1 * time.Microsecond)
 		select {
 		case <-ctx.Done():
@@ -41,7 +41,7 @@ func newBenchmark(opts ...BenchmarkOption) *Benchmark {
 		}
 	})
 
-	benchmark.Validation(func(ctx context.Context, r *Result) error {
+	benchmark.Validation(func(ctx context.Context, s *BenchmarkStep) error {
 		time.Sleep(1 * time.Microsecond)
 		select {
 		case <-ctx.Done():
@@ -65,6 +65,26 @@ func TestBenchmark(t *testing.T) {
 	}
 }
 
+func TestBenchmarkScore(t *testing.T) {
+	ctx := context.TODO()
+	b := newBenchmark()
+
+	b.Load(func(_ context.Context, s *BenchmarkStep) error {
+		s.AddScore("dummy")
+		return nil
+	})
+
+	result := b.Start(ctx)
+
+	if len(result.Errors.All()) != 0 {
+		t.Fatal(result.Errors.All())
+	}
+
+	if result.Score.Sum() != 1 {
+		t.Fatalf("%d", result.Score.Sum())
+	}
+}
+
 func TestBenchmarkCreation(t *testing.T) {
 	raise := errors.New("error")
 	_, err := NewBenchmark(func(b *Benchmark) error {
@@ -79,19 +99,19 @@ func TestBenchmarkCreation(t *testing.T) {
 func TestBenchmarkErrorHook(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
-	b.OnError(func(err error, r *Result) {
+	b.OnError(func(err error, s *BenchmarkStep) {
 		if failure.IsCode(err, ErrBenchmarkCancel) {
-			r.Cancel()
+			s.Cancel()
 		}
 	})
 
-	b.Prepare(func(_ context.Context, r *Result) error {
-		r.Errors.Add(failure.NewError(ErrBenchmarkCancel, errors.New("cancel")))
+	b.Prepare(func(_ context.Context, s *BenchmarkStep) error {
+		s.AddError(failure.NewError(ErrBenchmarkCancel, errors.New("cancel")))
 		return nil
 	})
 
 	loaded := false
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		loaded = true
 		return nil
 	})
@@ -118,7 +138,7 @@ func TestBenchmarkPreparePanic(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
 
-	b.Prepare(func(_ context.Context, _ *Result) error {
+	b.Prepare(func(_ context.Context, _ *BenchmarkStep) error {
 		panic("Prepare panic")
 	})
 
@@ -134,7 +154,7 @@ func TestBenchmarkPreparePanicError(t *testing.T) {
 	b := newBenchmark()
 
 	err := errors.New("Prepare panic")
-	b.Prepare(func(_ context.Context, _ *Result) error {
+	b.Prepare(func(_ context.Context, _ *BenchmarkStep) error {
 		panic(err)
 	})
 
@@ -150,12 +170,12 @@ func TestBenchmarkPrepareIgnoredError(t *testing.T) {
 	b := newBenchmark()
 
 	err := failure.NewError(ErrIgnore, errors.New("Prepare panic"))
-	b.Prepare(func(_ context.Context, _ *Result) error {
+	b.Prepare(func(_ context.Context, _ *BenchmarkStep) error {
 		return err
 	})
 
 	loaded := false
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		loaded = true
 		return nil
 	})
@@ -175,13 +195,13 @@ func TestBenchmarkPrepareCancel(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
 
-	b.Prepare(func(_ context.Context, r *Result) error {
-		r.Cancel()
+	b.Prepare(func(_ context.Context, s *BenchmarkStep) error {
+		s.Cancel()
 		return nil
 	})
 
 	loaded := false
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		loaded = true
 		return nil
 	})
@@ -199,9 +219,9 @@ func TestBenchmarkPrepareCancel(t *testing.T) {
 
 func TestBenchmarkLoadTimeout(t *testing.T) {
 	ctx := context.TODO()
-	b := newBenchmark(WithLoadTimeout(10 * time.Millisecond))
+	b := newBenchmark(WithLoadTimeout(1 * time.Millisecond))
 
-	b.Load(func(ctx context.Context, _ *Result) error {
+	b.Load(func(ctx context.Context, _ *BenchmarkStep) error {
 		for {
 			select {
 			case <-ctx.Done():
@@ -220,7 +240,7 @@ func TestBenchmarkLoadPanic(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
 
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		panic("Load panic")
 	})
 
@@ -229,6 +249,7 @@ func TestBenchmarkLoadPanic(t *testing.T) {
 	if len(result.Errors.All()) != 1 || !failure.IsCode(result.Errors.All()[0], ErrPanic) {
 		t.Fatal(result.Errors.All())
 	}
+	t.Log(result.Errors.All())
 }
 
 func TestBenchmarkLoadPanicError(t *testing.T) {
@@ -236,7 +257,7 @@ func TestBenchmarkLoadPanicError(t *testing.T) {
 	b := newBenchmark()
 
 	err := errors.New("Load panic")
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		panic(err)
 	})
 
@@ -252,12 +273,12 @@ func TestBenchmarkLoadIgnoredError(t *testing.T) {
 	b := newBenchmark()
 
 	err := failure.NewError(ErrIgnore, errors.New("Prepare panic"))
-	b.Load(func(_ context.Context, _ *Result) error {
+	b.Load(func(_ context.Context, _ *BenchmarkStep) error {
 		return err
 	})
 
 	loaded := false
-	b.Validation(func(_ context.Context, _ *Result) error {
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
 		loaded = true
 		return nil
 	})
@@ -277,13 +298,13 @@ func TestBenchmarkLoadCancel(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
 
-	b.Load(func(_ context.Context, r *Result) error {
-		r.Cancel()
+	b.Load(func(_ context.Context, s *BenchmarkStep) error {
+		s.Cancel()
 		return nil
 	})
 
 	loaded := false
-	b.Validation(func(_ context.Context, _ *Result) error {
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
 		loaded = true
 		return nil
 	})
@@ -303,7 +324,7 @@ func TestBenchmarkValidationPanic(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark()
 
-	b.Validation(func(_ context.Context, _ *Result) error {
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
 		panic("Validation panic")
 	})
 
@@ -319,7 +340,7 @@ func TestBenchmarkValidationPanicError(t *testing.T) {
 	b := newBenchmark()
 
 	err := errors.New("Validation panic")
-	b.Validation(func(_ context.Context, _ *Result) error {
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
 		panic(err)
 	})
 
@@ -335,7 +356,7 @@ func TestBenchmarkValidationIgnoredError(t *testing.T) {
 	b := newBenchmark()
 
 	err := failure.NewError(ErrIgnore, errors.New("Prepare panic"))
-	b.Validation(func(_ context.Context, _ *Result) error {
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
 		return err
 	})
 

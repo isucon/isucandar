@@ -10,15 +10,15 @@ var (
 )
 
 type PrepareScenario interface {
-	Prepare(context.Context, *Result) error
+	Prepare(context.Context, *BenchmarkStep) error
 }
 
 type LoadScenario interface {
-	Load(context.Context, *Result) error
+	Load(context.Context, *BenchmarkStep) error
 }
 
 type ValidationScenario interface {
-	Validation(context.Context, *Result) error
+	Validation(context.Context, *BenchmarkStep) error
 }
 
 func (b *Benchmark) AddScenario(scenario interface{}) {
