@@ -3,9 +3,10 @@ package isucandar
 import (
 	"context"
 	"errors"
-	"github.com/rosylilly/isucandar/failure"
 	"testing"
 	"time"
+
+	"github.com/rosylilly/isucandar/failure"
 )
 
 var (
@@ -219,7 +220,7 @@ func TestBenchmarkPrepareCancel(t *testing.T) {
 
 func TestBenchmarkLoadTimeout(t *testing.T) {
 	ctx := context.TODO()
-	b := newBenchmark(WithLoadTimeout(1 * time.Millisecond))
+	b := newBenchmark(WithLoadTimeout(5 * time.Millisecond))
 
 	b.Load(func(ctx context.Context, _ *BenchmarkStep) error {
 		for {
