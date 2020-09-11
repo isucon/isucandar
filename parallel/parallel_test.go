@@ -3,7 +3,7 @@ package parallel
 import (
 	"context"
 	"runtime"
-	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -12,37 +12,39 @@ func TestParallel(t *testing.T) {
 	parallel := NewParallel(2)
 	defer parallel.Close()
 
-	mu := sync.Mutex{}
-	var latestExecutionTime time.Time
+	pcount := int32(0)
+	pmcount := int32(0)
+	exited := uint32(0)
 	f := func(_ context.Context) {
-		time.Sleep(1 * time.Millisecond)
-		mu.Lock()
-		defer mu.Unlock()
-		latestExecutionTime = time.Now()
+		atomic.AddInt32(&pcount, 1)
+		defer atomic.AddInt32(&pcount, -1)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	ctx := context.TODO()
 
-	now := time.Now()
-	ch := make(chan bool)
+	parallel.Do(ctx, f)
 	go func() {
 		parallel.Do(ctx, f)
 		parallel.Do(ctx, f)
 		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		close(ch)
 	}()
-	<-ch
-	<-parallel.Wait()
 
-	mu.Lock()
-	diff := latestExecutionTime.Sub(now)
-	mu.Unlock()
+	go func() {
+		for atomic.LoadUint32(&exited) == 0 {
+			m := atomic.LoadInt32(&pcount)
+			if atomic.LoadInt32(&pmcount) < m {
+				atomic.StoreInt32(&pmcount, m)
+			}
+		}
+	}()
 
-	if diff >= 3*time.Millisecond {
-		t.Fatalf("Execution time: %s", diff)
-	} else {
-		t.Logf("Execution time: %s", diff)
+	parallel.Wait()
+	atomic.StoreUint32(&exited, 1)
+
+	maxCount := atomic.LoadInt32(&pmcount)
+	if maxCount != 2 {
+		t.Fatalf("Invalid parallel count: %d / %d", maxCount, 2)
 	}
 }
 
@@ -57,7 +59,7 @@ func TestParallelClosed(t *testing.T) {
 		called = true
 	})
 
-	<-parallel.Wait()
+	parallel.Wait()
 
 	if err == nil || err != ErrLimiterClosed {
 		t.Fatalf("missmatch error: %+v", err)
@@ -86,7 +88,7 @@ func TestParallelCanceled(t *testing.T) {
 		t.Fatal("Do not call")
 	})
 
-	<-parallel.Wait()
+	parallel.Wait()
 }
 
 func TestParallelPanicOnNegative(t *testing.T) {
@@ -112,37 +114,40 @@ func TestParallelSetParallelism(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
-		mu := sync.Mutex{}
-		var latestExecutionTime time.Time
+		pcount := int32(0)
+		pmcount := int32(0)
+		exited := uint32(0)
 		f := func(c context.Context) {
-			time.Sleep(1 * time.Millisecond)
-			mu.Lock()
-			latestExecutionTime = time.Now()
-			mu.Unlock()
+			atomic.AddInt32(&pcount, 1)
+			defer atomic.AddInt32(&pcount, -1)
+
+			time.Sleep(10 * time.Millisecond)
 		}
 
-		now := time.Now()
-		ch := make(chan bool)
+		parallel.Do(ctx, f)
 		go func() {
 			parallel.Do(ctx, f)
 			parallel.Do(ctx, f)
 			parallel.Do(ctx, f)
-			parallel.Do(ctx, f)
-			close(ch)
 		}()
-		<-ch
-		<-parallel.Wait()
 
-		mu.Lock()
-		diff := latestExecutionTime.Sub(now)
-		mu.Unlock()
+		go func() {
+			for atomic.LoadUint32(&exited) == 0 {
+				m := atomic.LoadInt32(&pcount)
+				if atomic.LoadInt32(&pmcount) < m {
+					atomic.StoreInt32(&pmcount, m)
+				}
+			}
+		}()
+		parallel.Wait()
+		atomic.StoreUint32(&exited, 1)
 
-		if diff > expectTime {
-			t.Fatalf("longer execution time: %s / %s", diff, expectTime)
+		maxCount := atomic.LoadInt32(&pmcount)
+		if maxCount != parallel.CurrentLimit() && parallel.CurrentLimit() > 0 {
+			t.Fatalf("Invalid parallel count: %d / %d", maxCount, parallel.CurrentLimit())
 		}
-		t.Logf("Pass with execution time: %s / %s", diff, expectTime)
 
-		<-parallel.Wait()
+		parallel.Wait()
 	}
 
 	parallel.SetParallelism(2)
@@ -170,6 +175,6 @@ func BenchmarkParallel(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		parallel.Do(ctx, nop)
 	}
-	<-parallel.Wait()
+	parallel.Wait()
 	b.StopTimer()
 }

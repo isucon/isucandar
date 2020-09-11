@@ -109,7 +109,7 @@ L:
 
 func (w *Worker) Wait() {
 	if w.parallel != nil {
-		<-w.parallel.Wait()
+		w.parallel.Wait()
 	}
 }
 

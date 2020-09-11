@@ -261,7 +261,7 @@ parallel.Close()
 
 // 実行中、あるいは未来実行するすべてのジョブの完了を待ちたい場合は、
 // Wait を利用してください。
-<-parallel.Wait()
+parallel.Wait()
 
 // 1度以上実行し、Close して停止した Parallel を再利用するには
 // Reset による再初期化が必要です。
