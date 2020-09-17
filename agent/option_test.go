@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rosylilly/isucandar/failure"
+	"github.com/isucon/isucandar/failure"
 )
 
 func TestNoCookie(t *testing.T) {

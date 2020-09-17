@@ -8,7 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/rosylilly/isucandar/failure"
+	"github.com/isucon/isucandar/failure"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )

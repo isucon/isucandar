@@ -1,7 +1,7 @@
 # isucandar
 
-[![test](https://github.com/rosylilly/isucandar/workflows/test/badge.svg)](https://github.com/rosylilly/isucandar/actions?query=workflow%3Atest)
-[![codecov](https://codecov.io/gh/rosylilly/isucandar/branch/master/graph/badge.svg?token=KO1N8H5S53)](https://codecov.io/gh/rosylilly/isucandar)
+[![test](https://github.com/isucon/isucandar/workflows/test/badge.svg)](https://github.com/isucon/isucandar/actions?query=workflow%3Atest)
+[![codecov](https://codecov.io/gh/isucon/isucandar/branch/master/graph/badge.svg?token=KO1N8H5S53)](https://codecov.io/gh/isucon/isucandar)
 
 isucandar は [ISUCON](http://isucon.net/) などの負荷試験で使える機能を集めたベンチマーカーフレームワークです。
 
@@ -91,8 +91,8 @@ fmt.Printf("%v", err)
 // standard: original error message
 fmt.Printf("%+v", err)
 // standard:
-//     github.com/rosylilly/isucandar/failure.TestPrint:
-//         ~/src/github.com/rosylilly/isucandar/failure/failure_test.go:10
+//     github.com/isucon/isucandar/failure.TestPrint:
+//         ~/src/github.com/isucon/isucandar/failure/failure_test.go:10
 // - original error message
 
 // 最も最近つけられた ErrorCode は以下のように取得できます。
@@ -274,8 +274,8 @@ parallel.Reset()
 
 ## Author
 
-Sho Kusano <rosylilly@aduca.org>
+Sho Kusano <isucon@aduca.org>
 
 ## License
 
-See [LICENSE](https://github.com/rosylilly/isucandar/blob/master/LICENSE)
+See [LICENSE](https://github.com/isucon/isucandar/blob/master/LICENSE)

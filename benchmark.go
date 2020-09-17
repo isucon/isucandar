@@ -3,8 +3,8 @@ package isucandar
 import (
 	"context"
 	"fmt"
-	"github.com/rosylilly/isucandar/failure"
-	"github.com/rosylilly/isucandar/parallel"
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/parallel"
 	"sync"
 	"time"
 )

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rosylilly/isucandar/worker"
+	"github.com/isucon/isucandar/worker"
 )
 
 func main() {

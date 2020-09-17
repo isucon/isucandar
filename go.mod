@@ -1,4 +1,4 @@
-module github.com/rosylilly/isucandar
+module github.com/isucon/isucandar
 
 go 1.15
 

@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/rosylilly/isucandar/parallel"
+	"github.com/isucon/isucandar/parallel"
 )
 
 var (

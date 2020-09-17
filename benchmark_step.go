@@ -2,8 +2,8 @@ package isucandar
 
 import (
 	"context"
-	"github.com/rosylilly/isucandar/failure"
-	"github.com/rosylilly/isucandar/score"
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/score"
 	"sync"
 )
 

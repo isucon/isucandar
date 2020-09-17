@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rosylilly/isucandar/pubsub"
-	"github.com/rosylilly/isucandar/worker"
+	"github.com/isucon/isucandar/pubsub"
+	"github.com/isucon/isucandar/worker"
 )
 
 func launchWorker(ctx context.Context, pubsub *pubsub.PubSub, format string) error {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/rosylilly/isucandar/agent"
+	"github.com/isucon/isucandar/agent"
 )
 
 func main() {
