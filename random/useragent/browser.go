@@ -28,20 +28,17 @@ func Chrome() string {
 
 var (
 	edgeVersions = []string{
-		"12.10240",
-		"13.10586",
-		"14.14393",
-		"15.15063",
-		"16.16299",
-		"17.17134",
-		"18.18362",
-		"84.0.522.52",
+		"79.0.522.52",
+		"80.0.522.52",
+		"81.0.522.52",
+		"82.0.522.52",
+		"83.0.522.52",
 		"85.0.564.44",
 	}
 )
 
 func Edge() string {
-	return fmt.Sprintf("%s Edge/%s", Chrome(), edgeVersions[rand.Intn(len(edgeVersions))])
+	return fmt.Sprintf("%s Edg/%s", Chrome(), edgeVersions[rand.Intn(len(edgeVersions))])
 }
 
 func Firefox() string {
