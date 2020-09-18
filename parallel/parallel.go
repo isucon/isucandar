@@ -58,15 +58,12 @@ func (l *Parallel) Do(f func(context.Context)) error {
 }
 
 func (l *Parallel) Wait() {
-	countp := &l.count
-
-	for {
-		select {
-		case <-l.ctx.Done():
-			return
-		case <-l.closer:
-			count := atomic.LoadInt32(countp)
-			if count == 0 {
+	if atomic.LoadUint32(&l.closed) != closedTrue {
+		for {
+			select {
+			case <-l.ctx.Done():
+				l.Close()
+			case <-l.closer:
 				return
 			}
 		}

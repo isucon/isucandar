@@ -116,7 +116,6 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 	} else {
 		loadCtx, loadCancel = context.WithCancel(ctx)
 	}
-	defer loadCancel()
 	loadParallel = parallel.NewParallel(loadCtx, -1)
 
 	for _, load := range b.loadSteps {
@@ -134,6 +133,7 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 		}(load)
 	}
 	loadParallel.Wait()
+	loadCancel()
 
 	result.Errors.Wait()
 

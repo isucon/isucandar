@@ -222,18 +222,16 @@ func TestBenchmarkLoadTimeout(t *testing.T) {
 	ctx := context.TODO()
 	b := newBenchmark(WithLoadTimeout(5 * time.Millisecond))
 
+	runAll := false
 	b.Load(func(ctx context.Context, _ *BenchmarkStep) error {
-		for {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
+		time.Sleep(100 * time.Millisecond)
+		runAll = true
+		return nil
 	})
-	result := b.Start(ctx)
+	b.Start(ctx)
 
-	if len(result.Errors.All()) != 1 || !failure.Is(result.Errors.All()[0], context.DeadlineExceeded) {
-		t.Fatal(result.Errors.All())
+	if runAll {
+		t.Fatal("Not timeout")
 	}
 }
 
