@@ -121,7 +121,7 @@ func (a *Agent) Do(ctx context.Context, req *http.Request) (*http.Response, erro
 		}
 	}
 
-	cache, err = newCache(res, cache)
+	cache, err = newCache(res, cache.Body())
 	if err != nil {
 		return nil, err
 	}

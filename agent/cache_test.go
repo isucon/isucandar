@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -116,6 +117,15 @@ func TestCacheWithLastModified(t *testing.T) {
 
 	if res.StatusCode != 304 {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read body: %+v", err)
+	}
+
+	if string(body) != "Hello, World" {
+		t.Fatalf("body missmatch: %x", body)
 	}
 }
 
@@ -315,5 +325,51 @@ func TestCacheWithClear(t *testing.T) {
 
 	if reqCount != 2 {
 		t.Fatalf("missmatch req count: %d", reqCount)
+	}
+}
+
+func BenchmarkCacheWithMaxAge(b *testing.B) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Set("Cache-Control", "max-age=20000")
+		w.WriteHeader(http.StatusOK)
+
+		io.WriteString(w, "Hello, World")
+	}))
+	defer srv.Close()
+
+	agent, err := NewAgent(WithBaseURL(srv.URL))
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	_, res, err := get(agent, "/")
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	if res.StatusCode != 200 {
+		b.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, res, err := get(agent, "/")
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if res.StatusCode != 200 && res.StatusCode != 304 {
+			b.Fatalf("status code missmatch: %d", res.StatusCode)
+		}
+
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			b.Fatal(err)
+		}
+
+		if string(body) != "Hello, World" {
+			b.Fatal("body missmatch")
+		}
 	}
 }

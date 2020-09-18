@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/pquerna/cachecontrol/cacheobject"
@@ -30,7 +29,6 @@ var (
 )
 
 type Cache struct {
-	mu            sync.RWMutex
 	now           time.Time
 	body          []byte
 	res           *http.Response
@@ -44,7 +42,7 @@ type Cache struct {
 	VariesKey     string
 }
 
-func newCache(res *http.Response, cache *Cache) (*Cache, error) {
+func newCache(res *http.Response, cachedBody []byte) (*Cache, error) {
 	// Do not cache request without get method
 	if res.Request.Method != http.MethodGet {
 		return nil, nil
@@ -74,20 +72,10 @@ func newCache(res *http.Response, cache *Cache) (*Cache, error) {
 		return nil, err
 	}
 
-	if cache == nil {
-		cache = &Cache{
-			mu:            sync.RWMutex{},
-			now:           time.Now(),
-			ReqDirectives: reqDirs,
-			ResDirectives: resDirs,
-		}
-		cache.mu.Lock()
-		defer cache.mu.Unlock()
-	} else {
-		cache.mu.Lock()
-		defer cache.mu.Unlock()
-		cache.ReqDirectives = reqDirs
-		cache.ResDirectives = resDirs
+	cache := &Cache{
+		now:           time.Now(),
+		ReqDirectives: reqDirs,
+		ResDirectives: resDirs,
 	}
 
 	if t, err := http.ParseTime(res.Header.Get("Expires")); err == nil {
@@ -128,16 +116,21 @@ func newCache(res *http.Response, cache *Cache) (*Cache, error) {
 			return nil, err
 		}
 		res.Body.Close()
+		cachedBody = cache.body
 	}
-	res.Body = ioutil.NopCloser(bytes.NewReader(cache.body))
+	res.Body = ioutil.NopCloser(bytes.NewReader(cachedBody))
 
 	return cache, nil
 }
 
-func (c *Cache) apply(req *http.Request) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+func (c *Cache) Body() []byte {
+	if c != nil {
+		return c.body
+	}
+	return nil
+}
 
+func (c *Cache) apply(req *http.Request) {
 	if c.LastModified != nil {
 		req.Header.Set("If-Modified-Since", c.LastModified.Format(http.TimeFormat))
 	}
@@ -147,9 +140,6 @@ func (c *Cache) apply(req *http.Request) {
 }
 
 func (c *Cache) isOutdated() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	now := time.Now().UTC()
 
 	if c.ResDirectives.MaxAge <= 0 && c.Expires == nil {
@@ -163,9 +153,6 @@ func (c *Cache) isOutdated() bool {
 }
 
 func (c *Cache) matchVariesKey(req *http.Request) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	key := ""
 	for _, h := range c.Varies {
 		key += strings.Join(req.Header.Values(h), ", ")
@@ -175,16 +162,10 @@ func (c *Cache) matchVariesKey(req *http.Request) bool {
 }
 
 func (c *Cache) requiresRevalidate(req *http.Request) bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	return c.ResDirectives.MustRevalidate || !c.matchVariesKey(req) || c.isOutdated()
 }
 
 func (c *Cache) restoreResponse() *http.Response {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
 	var res http.Response
 	res = *c.res
 	res.Body = ioutil.NopCloser(bytes.NewReader(c.body))
