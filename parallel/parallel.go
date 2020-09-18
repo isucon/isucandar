@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
+	"time"
 )
 
 var (
@@ -17,62 +18,67 @@ const (
 )
 
 type Parallel struct {
+	ctx    context.Context
 	limit  int32
 	count  int32
-	state  uint32
 	closed uint32
 }
 
-func NewParallel(limit int32) *Parallel {
-	return &Parallel{
+func NewParallel(ctx context.Context, limit int32) *Parallel {
+	p := &Parallel{
+		ctx:    ctx,
 		limit:  limit,
 		count:  0,
-		state:  0,
 		closed: closedFalse,
 	}
+
+	go func() {
+		<-ctx.Done()
+		atomic.StoreUint32(&p.closed, closedTrue)
+	}()
+
+	return p
 }
 
 func (l *Parallel) CurrentLimit() int32 {
 	return atomic.LoadInt32(&l.limit)
 }
 
-func (l *Parallel) Do(ctx context.Context, f func(context.Context)) error {
+func (l *Parallel) Do(f func(context.Context)) error {
 	atomic.AddInt32(&l.count, 1)
 
-	err := l.start(ctx)
+	err := l.start()
 	if err != nil {
 		atomic.AddInt32(&l.count, -1)
 		return err
 	}
 
-	go func(state uint32) {
-		defer l.done(state)
-		defer func() {
-			if atomic.LoadUint32(&l.state) == state {
-				atomic.AddInt32(&l.count, -1)
-			}
-		}()
-		f(ctx)
-	}(atomic.LoadUint32(&l.state))
+	go func() {
+		defer l.done()
+		f(l.ctx)
+	}()
 
 	return nil
 }
 
 func (l *Parallel) Wait() {
-	state := atomic.LoadUint32(&l.state)
-	for atomic.LoadInt32(&l.count) > 0 && atomic.LoadUint32(&l.state) == state {
-		// nop
+	countp := &l.count
+
+	for {
+		select {
+		case <-l.ctx.Done():
+			return
+		case <-time.After(time.Microsecond):
+			count := atomic.LoadInt32(countp)
+			if count == 0 {
+				return
+			}
+		}
 	}
 }
 
 func (l *Parallel) Close() {
 	atomic.StoreUint32(&l.closed, closedTrue)
-}
-
-func (l *Parallel) Reset() {
-	atomic.StoreUint32(&l.closed, closedFalse)
-	atomic.AddUint32(&l.state, 1)
-	atomic.StoreInt32(&l.count, 0)
 }
 
 func (l *Parallel) SetParallelism(limit int32) {
@@ -83,8 +89,8 @@ func (l *Parallel) AddParallelism(limit int32) {
 	atomic.AddInt32(&l.limit, limit)
 }
 
-func (l *Parallel) start(ctx context.Context) error {
-	for l.isRunning(ctx) {
+func (l *Parallel) start() error {
+	for l.isRunning() {
 		if count, kept := l.isLimitKept(); kept {
 			if atomic.CompareAndSwapInt32(&l.count, count, count+1) {
 				return nil
@@ -95,16 +101,14 @@ func (l *Parallel) start(ctx context.Context) error {
 	return ErrLimiterClosed
 }
 
-func (l *Parallel) done(state uint32) {
-	if atomic.LoadUint32(&l.state) == state {
-		if atomic.AddInt32(&l.count, -1) < 0 {
-			panic(ErrNegativeCount)
-		}
+func (l *Parallel) done() {
+	if atomic.AddInt32(&l.count, -2) < 0 {
+		panic(ErrNegativeCount)
 	}
 }
 
-func (l *Parallel) isRunning(ctx context.Context) bool {
-	return atomic.LoadUint32(&l.closed) == closedFalse && ctx.Err() == nil
+func (l *Parallel) isRunning() bool {
+	return atomic.LoadUint32(&l.closed) == closedFalse && l.ctx.Err() == nil
 }
 
 func (l *Parallel) isLimitKept() (int32, bool) {

@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"github.com/isucon/isucandar/parallel"
@@ -15,9 +16,11 @@ type WorkerFunc func(context.Context, int)
 type WorkerOption func(*Worker) error
 
 type Worker struct {
-	workFunc WorkerFunc
-	count    int32
-	parallel *parallel.Parallel
+	mu          sync.RWMutex
+	workFunc    WorkerFunc
+	count       int32
+	parallelism int32
+	parallel    *parallel.Parallel
 }
 
 func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
@@ -29,9 +32,10 @@ func NewWorker(f WorkerFunc, opts ...WorkerOption) (*Worker, error) {
 	}
 
 	worker := &Worker{
-		workFunc: f,
-		count:    count,
-		parallel: parallel.NewParallel(parallelism),
+		mu:          sync.RWMutex{},
+		workFunc:    f,
+		count:       count,
+		parallelism: parallelism,
 	}
 
 	for _, opt := range opts {
@@ -58,9 +62,11 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	parallel := w.parallel
-	parallel.Reset()
+	parallel := parallel.NewParallel(ctx, w.parallelism)
 	defer parallel.Close()
+	w.mu.Lock()
+	w.parallel = parallel
+	w.mu.Unlock()
 
 	work := func(ctx context.Context) {
 		w.workFunc(ctx, -1)
@@ -72,7 +78,7 @@ L:
 		case <-ctx.Done():
 			break L
 		default:
-			parallel.Do(ctx, work)
+			parallel.Do(work)
 		}
 	}
 
@@ -84,9 +90,11 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	parallel := w.parallel
-	parallel.Reset()
+	parallel := parallel.NewParallel(ctx, w.parallelism)
 	defer parallel.Close()
+	w.mu.Lock()
+	w.parallel = parallel
+	w.mu.Unlock()
 
 	work := func(i int) func(context.Context) {
 		return func(ctx context.Context) {
@@ -100,7 +108,7 @@ L:
 		case <-ctx.Done():
 			break L
 		default:
-			parallel.Do(ctx, work(i))
+			parallel.Do(work(i))
 		}
 	}
 
@@ -108,6 +116,9 @@ L:
 }
 
 func (w *Worker) Wait() {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
 	if w.parallel != nil {
 		w.parallel.Wait()
 	}
@@ -117,12 +128,18 @@ func (w *Worker) SetLoopCount(count int32) {
 	atomic.StoreInt32(&w.count, count)
 }
 
-func (w *Worker) SetParallelism(paralellism int32) {
-	w.parallel.SetParallelism(paralellism)
+func (w *Worker) SetParallelism(parallelism int32) {
+	w.mu.RLock()
+	defer w.mu.RUnlock()
+
+	atomic.StoreInt32(&w.parallelism, parallelism)
+	if w.parallel != nil {
+		w.parallel.SetParallelism(parallelism)
+	}
 }
 
-func (w *Worker) AddParallelism(paralellism int32) {
-	w.parallel.AddParallelism(paralellism)
+func (w *Worker) AddParallelism(parallelism int32) {
+	w.SetParallelism(atomic.LoadInt32(&w.parallelism) + parallelism)
 }
 
 func WithLoopCount(count int32) WorkerOption {

@@ -3,10 +3,11 @@ package isucandar
 import (
 	"context"
 	"fmt"
-	"github.com/isucon/isucandar/failure"
-	"github.com/isucon/isucandar/parallel"
 	"sync"
 	"time"
+
+	"github.com/isucon/isucandar/failure"
+	"github.com/isucon/isucandar/parallel"
 )
 
 var (
@@ -72,10 +73,10 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 		}(hook)
 	}
 
-	loadParallel := parallel.NewParallel(-1)
 	var (
-		loadCtx    context.Context
-		loadCancel context.CancelFunc
+		loadParallel *parallel.Parallel
+		loadCtx      context.Context
+		loadCancel   context.CancelFunc
 	)
 
 	step.setErrorCode(ErrPrepare)
@@ -116,10 +117,11 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 		loadCtx, loadCancel = context.WithCancel(ctx)
 	}
 	defer loadCancel()
+	loadParallel = parallel.NewParallel(loadCtx, -1)
 
 	for _, load := range b.loadSteps {
 		func(f BenchmarkStepFunc) {
-			loadParallel.Do(loadCtx, func(c context.Context) {
+			loadParallel.Do(func(c context.Context) {
 				if err := panicWrapper(func() error { return f(c, step) }); err != nil {
 					for _, ignore := range b.ignoreCodes {
 						if failure.IsCode(err, ignore) {

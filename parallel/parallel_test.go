@@ -2,14 +2,15 @@ package parallel
 
 import (
 	"context"
-	"runtime"
 	"sync/atomic"
 	"testing"
 	"time"
 )
 
 func TestParallel(t *testing.T) {
-	parallel := NewParallel(2)
+	ctx := context.TODO()
+
+	parallel := NewParallel(ctx, 2)
 	defer parallel.Close()
 
 	pcount := int32(0)
@@ -21,13 +22,11 @@ func TestParallel(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	ctx := context.TODO()
-
-	parallel.Do(ctx, f)
+	parallel.Do(f)
 	go func() {
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
-		parallel.Do(ctx, f)
+		parallel.Do(f)
+		parallel.Do(f)
+		parallel.Do(f)
 	}()
 
 	go func() {
@@ -49,13 +48,13 @@ func TestParallel(t *testing.T) {
 }
 
 func TestParallelClosed(t *testing.T) {
-	parallel := NewParallel(2)
-	parallel.Close()
-
 	ctx := context.TODO()
 
+	parallel := NewParallel(ctx, 2)
+	parallel.Close()
+
 	called := false
-	err := parallel.Do(ctx, func(_ context.Context) {
+	err := parallel.Do(func(_ context.Context) {
 		called = true
 	})
 
@@ -70,21 +69,13 @@ func TestParallelClosed(t *testing.T) {
 	}
 }
 
-func TestParallelUnlimited(t *testing.T) {
-	parallel := NewParallel(0)
-
-	if parallel.limit != 0 {
-		t.Fatalf("Invalid limit: %d", parallel.limit)
-	}
-}
-
 func TestParallelCanceled(t *testing.T) {
-	parallel := NewParallel(0)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	parallel.Do(ctx, func(_ context.Context) {
+	parallel := NewParallel(ctx, 0)
+
+	parallel.Do(func(_ context.Context) {
 		t.Fatal("Do not call")
 	})
 
@@ -92,12 +83,15 @@ func TestParallelCanceled(t *testing.T) {
 }
 
 func TestParallelPanicOnNegative(t *testing.T) {
-	parallel := NewParallel(0)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	parallel := NewParallel(ctx, 0)
 
 	var err interface{}
 	func() {
 		defer func() { err = recover() }()
-		parallel.done(parallel.state)
+		parallel.done()
 	}()
 
 	if err != ErrNegativeCount {
@@ -106,13 +100,12 @@ func TestParallelPanicOnNegative(t *testing.T) {
 }
 
 func TestParallelSetParallelism(t *testing.T) {
-	parallel := NewParallel(0)
-
-	check := func(expectTime time.Duration) {
-		parallel.Reset()
-
+	check := func(paralellism int32) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
+
+		parallel := NewParallel(ctx, -1)
+		parallel.SetParallelism(paralellism)
 
 		pcount := int32(0)
 		pmcount := int32(0)
@@ -124,11 +117,11 @@ func TestParallelSetParallelism(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 		}
 
-		parallel.Do(ctx, f)
+		parallel.Do(f)
 		go func() {
-			parallel.Do(ctx, f)
-			parallel.Do(ctx, f)
-			parallel.Do(ctx, f)
+			parallel.Do(f)
+			parallel.Do(f)
+			parallel.Do(f)
 		}()
 
 		go func() {
@@ -150,30 +143,62 @@ func TestParallelSetParallelism(t *testing.T) {
 		parallel.Wait()
 	}
 
-	parallel.SetParallelism(2)
-	check(3 * time.Millisecond)
+	check(2)
+	check(1)
+	check(-1)
+}
 
-	parallel.AddParallelism(-1)
-	check(6 * time.Millisecond)
+func TestParallelAddParallelism(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
 
-	parallel.AddParallelism(-1)
-	unlimitedCount := 4 / runtime.GOMAXPROCS(0)
-	if unlimitedCount <= 0 {
-		unlimitedCount = 1
+	para := NewParallel(ctx, 1)
+	para.AddParallelism(1)
+
+	pcount := int32(0)
+	pmcount := int32(0)
+	exited := uint32(0)
+	f := func(c context.Context) {
+		atomic.AddInt32(&pcount, 1)
+		defer atomic.AddInt32(&pcount, -1)
+
+		time.Sleep(10 * time.Millisecond)
 	}
-	check(time.Duration(unlimitedCount)*time.Millisecond + (time.Duration(unlimitedCount) * 500 * time.Microsecond))
+
+	para.Do(f)
+	go func() {
+		para.Do(f)
+		para.Do(f)
+		para.Do(f)
+	}()
+
+	go func() {
+		for atomic.LoadUint32(&exited) == 0 {
+			m := atomic.LoadInt32(&pcount)
+			if atomic.LoadInt32(&pmcount) < m {
+				atomic.StoreInt32(&pmcount, m)
+			}
+		}
+	}()
+	para.Wait()
+	atomic.StoreUint32(&exited, 1)
+
+	maxCount := atomic.LoadInt32(&pmcount)
+	if maxCount != 2 {
+		t.Fatalf("Invalid parallel count: %d / %d", maxCount, para.CurrentLimit())
+	}
 }
 
 func BenchmarkParallel(b *testing.B) {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	parallel := NewParallel(-1)
+	parallel := NewParallel(ctx, -1)
 	nop := func(_ context.Context) {}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		parallel.Do(ctx, nop)
+		parallel.Do(nop)
 	}
 	parallel.Wait()
 	b.StopTimer()
