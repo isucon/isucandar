@@ -94,6 +94,10 @@ func newCache(res *http.Response, cachedBody []byte) (*Cache, error) {
 		cache.ETag = &etag
 	}
 
+	if cache.Expires == nil && cache.LastModified == nil && cache.ETag == nil && cache.ResDirectives.MaxAge == -1 {
+		return nil, nil
+	}
+
 	varies := make([]string, 0, 3)
 	for _, v := range res.Header.Values("Vary") {
 		for _, k := range strings.Split(v, ",") {
