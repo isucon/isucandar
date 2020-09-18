@@ -107,7 +107,7 @@ func (l *Parallel) done() {
 }
 
 func (l *Parallel) isRunning() bool {
-	return atomic.LoadUint32(&l.closed) == closedFalse && l.ctx.Err() == nil
+	return atomic.LoadUint32(&l.closed) == closedFalse
 }
 
 func (l *Parallel) isLimitKept() (int32, bool) {
