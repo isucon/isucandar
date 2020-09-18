@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"sync/atomic"
-	"time"
 )
 
 var (
@@ -22,6 +21,7 @@ type Parallel struct {
 	limit  int32
 	count  int32
 	closed uint32
+	closer chan struct{}
 }
 
 func NewParallel(ctx context.Context, limit int32) *Parallel {
@@ -30,12 +30,8 @@ func NewParallel(ctx context.Context, limit int32) *Parallel {
 		limit:  limit,
 		count:  0,
 		closed: closedFalse,
+		closer: make(chan struct{}),
 	}
-
-	go func() {
-		<-ctx.Done()
-		atomic.StoreUint32(&p.closed, closedTrue)
-	}()
 
 	return p
 }
@@ -68,7 +64,7 @@ func (l *Parallel) Wait() {
 		select {
 		case <-l.ctx.Done():
 			return
-		case <-time.After(time.Microsecond):
+		case <-l.closer:
 			count := atomic.LoadInt32(countp)
 			if count == 0 {
 				return
@@ -78,7 +74,9 @@ func (l *Parallel) Wait() {
 }
 
 func (l *Parallel) Close() {
-	atomic.StoreUint32(&l.closed, closedTrue)
+	if atomic.CompareAndSwapUint32(&l.closed, closedFalse, closedTrue) {
+		close(l.closer)
+	}
 }
 
 func (l *Parallel) SetParallelism(limit int32) {
@@ -102,8 +100,12 @@ func (l *Parallel) start() error {
 }
 
 func (l *Parallel) done() {
-	if atomic.AddInt32(&l.count, -2) < 0 {
+	count := atomic.AddInt32(&l.count, -2)
+	if count < 0 {
 		panic(ErrNegativeCount)
+	}
+	if count == 0 {
+		l.Close()
 	}
 }
 
