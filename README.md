@@ -274,7 +274,7 @@ parallel.Reset()
 
 ## Author
 
-Sho Kusano <isucon@aduca.org>
+Sho Kusano <rosylilly@aduca.org>
 
 ## License
 
