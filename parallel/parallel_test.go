@@ -91,7 +91,7 @@ func TestParallelPanicOnNegative(t *testing.T) {
 	var err interface{}
 	func() {
 		defer func() { err = recover() }()
-		parallel.done()
+		parallel.done(nil)
 	}()
 
 	if err != ErrNegativeCount {
