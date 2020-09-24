@@ -52,6 +52,8 @@ func (s *Errors) collect(ctx context.Context) {
 }
 
 func (s *Errors) Add(err error) {
+	defer func() { recover() }()
+
 	if atomic.CompareAndSwapUint32(&s.closed, 0, 0) {
 		s.queue <- err
 		atomic.AddInt32(&s.count, 1)
