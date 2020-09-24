@@ -17,6 +17,7 @@ type Resource struct {
 	InitiatorType string
 	Request       *http.Request
 	Response      *http.Response
+	Error         error
 }
 
 type Resources map[string]*Resource
@@ -26,7 +27,7 @@ func (a *Agent) ProcessHTML(ctx context.Context, r *http.Response, body io.ReadC
 
 	wg := sync.WaitGroup{}
 	mu := sync.Mutex{}
-	resouces := make(Resources)
+	resources := make(Resources)
 	base := &*r.Request.URL
 	baseChanged := false
 
@@ -36,22 +37,21 @@ func (a *Agent) ProcessHTML(ctx context.Context, r *http.Response, body io.ReadC
 	resourceCollect := func(token html.Token) {
 		defer wg.Done()
 		var res *Resource
-		var err error
 		switch token.DataAtom {
 		case atom.Link:
-			res, err = a.processHTMLLink(ctx, base, token)
+			res = a.processHTMLLink(ctx, base, token)
 		case atom.Script:
-			res, err = a.processHTMLScript(ctx, base, token)
+			res = a.processHTMLScript(ctx, base, token)
 		case atom.Img:
-			res, err = a.processHTMLImage(ctx, base, token)
+			res = a.processHTMLImage(ctx, base, token)
 		}
 
-		if res != nil && err == nil {
+		if res != nil && res.Request != nil {
 			if res.InitiatorType == "favicon" {
 				atomic.StoreInt32(favicon, 1)
 			}
 			mu.Lock()
-			resouces[res.Request.URL.String()] = res
+			resources[res.Request.URL.String()] = res
 			mu.Unlock()
 		}
 	}
@@ -91,8 +91,8 @@ func (a *Agent) ProcessHTML(ctx context.Context, r *http.Response, body io.ReadC
 
 	// Automated favicon fetcher
 	if atomic.LoadInt32(favicon) == 0 {
-		if res, err := a.getResource(ctx, base, "/favicon.ico", "favicon"); err == nil && res != nil {
-			resouces[res.Request.URL.String()] = res
+		if res := a.getResource(ctx, base, "/favicon.ico", "favicon"); res != nil && res.Request != nil {
+			resources[res.Request.URL.String()] = res
 		}
 	}
 
@@ -100,10 +100,10 @@ func (a *Agent) ProcessHTML(ctx context.Context, r *http.Response, body io.ReadC
 	if failure.Is(err, io.EOF) {
 		err = nil
 	}
-	return resouces, err
+	return resources, err
 }
 
-func (a *Agent) processHTMLLink(ctx context.Context, base *url.URL, token html.Token) (*Resource, error) {
+func (a *Agent) processHTMLLink(ctx context.Context, base *url.URL, token html.Token) *Resource {
 	rel := ""
 	href := ""
 	for _, attr := range token.Attr {
@@ -126,10 +126,10 @@ func (a *Agent) processHTMLLink(ctx context.Context, base *url.URL, token html.T
 		return a.getResource(ctx, base, href, "manifest")
 	}
 
-	return nil, nil
+	return nil
 }
 
-func (a *Agent) processHTMLScript(ctx context.Context, base *url.URL, token html.Token) (*Resource, error) {
+func (a *Agent) processHTMLScript(ctx context.Context, base *url.URL, token html.Token) *Resource {
 	src := ""
 	for _, attr := range token.Attr {
 		switch attr.Key {
@@ -139,13 +139,13 @@ func (a *Agent) processHTMLScript(ctx context.Context, base *url.URL, token html
 	}
 
 	if src == "" {
-		return nil, nil
+		return nil
 	}
 
 	return a.getResource(ctx, base, src, "script")
 }
 
-func (a *Agent) processHTMLImage(ctx context.Context, base *url.URL, token html.Token) (*Resource, error) {
+func (a *Agent) processHTMLImage(ctx context.Context, base *url.URL, token html.Token) *Resource {
 	src := ""
 	lazy := false // loading="lazy"
 	for _, attr := range token.Attr {
@@ -158,32 +158,37 @@ func (a *Agent) processHTMLImage(ctx context.Context, base *url.URL, token html.
 	}
 
 	if lazy || src == "" {
-		return nil, nil
+		return nil
 	}
 
 	return a.getResource(ctx, base, src, "img")
 }
 
-func (a *Agent) getResource(ctx context.Context, base *url.URL, ref string, initiatorType string) (*Resource, error) {
+func (a *Agent) getResource(ctx context.Context, base *url.URL, ref string, initiatorType string) (res *Resource) {
+	res = &Resource{
+		InitiatorType: initiatorType,
+	}
+
 	refURL, err := url.Parse(ref)
 	if err != nil {
-		return nil, err
+		res.Error = err
+		return
 	}
 	refURL = base.ResolveReference(refURL)
 
-	req, err := a.GET(refURL.String())
+	hreq, err := a.GET(refURL.String())
 	if err != nil {
-		return nil, err
+		res.Error = err
+		return
 	}
+	res.Request = hreq
 
-	res, err := a.Do(ctx, req)
+	hres, err := a.Do(ctx, hreq)
 	if err != nil {
-		return nil, err
+		res.Error = err
+		return
 	}
+	res.Response = hres
 
-	return &Resource{
-		InitiatorType: initiatorType,
-		Request:       req,
-		Response:      res,
-	}, nil
+	return
 }
