@@ -11,14 +11,12 @@ import (
 	"time"
 )
 
-const (
+var (
 	DefaultConnections    = 10000
 	DefaultName           = "isucandar"
 	DefaultAccept         = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 	DefaultRequestTimeout = 1 * time.Second
-)
 
-var (
 	DefaultTLSConfig = &tls.Config{
 		InsecureSkipVerify: true,
 	}
