@@ -81,6 +81,8 @@ func TestBenchmarkScore(t *testing.T) {
 		t.Fatal(result.Errors.All())
 	}
 
+	result.Score.Set("dummy", 1)
+
 	if result.Score.Sum() != 1 {
 		t.Fatalf("%d", result.Score.Sum())
 	}
