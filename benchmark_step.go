@@ -2,9 +2,10 @@ package isucandar
 
 import (
 	"context"
+	"sync"
+
 	"github.com/isucon/isucandar/failure"
 	"github.com/isucon/isucandar/score"
-	"sync"
 )
 
 type BenchmarkStep struct {
@@ -34,6 +35,10 @@ func (b *BenchmarkStep) AddScore(tag score.ScoreTag) {
 
 func (b *BenchmarkStep) Cancel() {
 	b.cancel()
+}
+
+func (b *BenchmarkStep) Result() *BenchmarkResult {
+	return b.result
 }
 
 func (b *BenchmarkStep) wait() {
