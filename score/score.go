@@ -11,7 +11,8 @@ type ScoreTable map[ScoreTag]int64
 type sumTable map[ScoreTag]*int64
 
 type Score struct {
-	Table ScoreTable
+	Table                     ScoreTable
+	DefaultScoreMagnification int64
 
 	total  sumTable
 	count  int32
@@ -21,11 +22,12 @@ type Score struct {
 
 func NewScore(ctx context.Context) *Score {
 	score := &Score{
-		Table:  make(ScoreTable),
-		total:  make(sumTable),
-		count:  0,
-		queue:  make(chan ScoreTag),
-		closed: 0,
+		Table:                     make(ScoreTable),
+		DefaultScoreMagnification: 0,
+		total:                     make(sumTable),
+		count:                     0,
+		queue:                     make(chan ScoreTag),
+		closed:                    0,
 	}
 
 	go score.collect(ctx)
@@ -97,7 +99,7 @@ func (s *Score) Sum() int64 {
 		if mag, found := s.Table[tag]; found {
 			sum += atomic.LoadInt64(ptr) * mag
 		} else {
-			sum += atomic.LoadInt64(ptr)
+			sum += atomic.LoadInt64(ptr) * s.DefaultScoreMagnification
 		}
 	}
 	return sum
