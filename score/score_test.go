@@ -8,6 +8,7 @@ import (
 func TestScoreWithDone(t *testing.T) {
 	score := NewScore(context.Background())
 	score.Set("foo", 2)
+	score.Set("bar", 1)
 
 	for i := 0; i < 1000; i++ {
 		score.Add("foo")

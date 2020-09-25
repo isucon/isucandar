@@ -127,6 +127,24 @@ func TestCacheWithLastModified(t *testing.T) {
 	if string(body) != "Hello, World" {
 		t.Fatalf("body missmatch: %x", body)
 	}
+
+	_, res, err = get(agent, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != 304 {
+		t.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
+	body, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read body: %+v", err)
+	}
+
+	if string(body) != "Hello, World" {
+		t.Fatalf("body missmatch: %x", body)
+	}
 }
 
 func TestCacheWithETag(t *testing.T) {
@@ -169,6 +187,43 @@ func TestCacheWithETag(t *testing.T) {
 	if res.StatusCode != 304 {
 		t.Fatalf("status code missmatch: %d", res.StatusCode)
 	}
+
+	_, res, err = get(agent, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != 304 {
+		t.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read body: %+v", err)
+	}
+
+	if string(body) != "Hello, World" {
+		t.Fatalf("body missmatch: %x", body)
+	}
+
+	_, res, err = get(agent, "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if res.StatusCode != 304 {
+		t.Fatalf("status code missmatch: %d", res.StatusCode)
+	}
+
+	body, err = ioutil.ReadAll(res.Body)
+	if err != nil {
+		t.Fatalf("read body: %+v", err)
+	}
+
+	if string(body) != "Hello, World" {
+		t.Fatalf("body missmatch: %x", body)
+	}
+
 }
 
 func TestCacheWithMaxAge(t *testing.T) {
