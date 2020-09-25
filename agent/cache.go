@@ -113,8 +113,10 @@ func newCache(res *http.Response, cachedBody []byte) (*Cache, error) {
 	}
 	cache.VariesKey = key
 
-	if res.StatusCode != 304 {
-		cache.res = res
+	cache.res = res
+	if res.StatusCode == 304 {
+		cache.body = cachedBody
+	} else {
 		cache.body, err = ioutil.ReadAll(res.Body)
 		if err != nil {
 			return nil, err
