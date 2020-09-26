@@ -127,7 +127,7 @@ func (l *Parallel) start() error {
 
 func (l *Parallel) done(doner chan struct{}) {
 	select {
-	case <-l.doner:
+	case <-doner:
 	default:
 	}
 
