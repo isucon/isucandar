@@ -2,6 +2,7 @@ package score
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 )
 
@@ -14,6 +15,7 @@ type Score struct {
 	Table                     ScoreTable
 	DefaultScoreMagnification int64
 
+	mu     sync.RWMutex
 	total  sumTable
 	count  int32
 	queue  chan ScoreTag
@@ -24,6 +26,7 @@ func NewScore(ctx context.Context) *Score {
 	score := &Score{
 		Table:                     make(ScoreTable),
 		DefaultScoreMagnification: 0,
+		mu:                        sync.RWMutex{},
 		total:                     make(sumTable),
 		count:                     0,
 		queue:                     make(chan ScoreTag),
@@ -36,6 +39,9 @@ func NewScore(ctx context.Context) *Score {
 }
 
 func (s *Score) add(tag ScoreTag) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	if ptr, ok := s.total[tag]; ok {
 		atomic.AddInt64(ptr, 1)
 	} else {
@@ -88,6 +94,9 @@ func (s *Score) Done() {
 }
 
 func (s *Score) Breakdown() ScoreTable {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	table := make(ScoreTable)
 	for tag, ptr := range s.total {
 		table[tag] = atomic.LoadInt64(ptr)
@@ -96,6 +105,9 @@ func (s *Score) Breakdown() ScoreTable {
 }
 
 func (s *Score) Sum() int64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
 	sum := int64(0)
 	for tag, ptr := range s.total {
 		if mag, found := s.Table[tag]; found {
