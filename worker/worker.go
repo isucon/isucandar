@@ -62,7 +62,7 @@ func (w *Worker) processInfinity(ctx context.Context) {
 		return
 	}
 
-	parallel := parallel.NewParallel(ctx, w.parallelism)
+	parallel := parallel.NewParallel(ctx, atomic.LoadInt32(&w.parallelism))
 	defer parallel.Close()
 	w.mu.Lock()
 	w.parallel = parallel
@@ -90,7 +90,7 @@ func (w *Worker) processLimited(ctx context.Context, limit int) {
 		return
 	}
 
-	parallel := parallel.NewParallel(ctx, w.parallelism)
+	parallel := parallel.NewParallel(ctx, atomic.LoadInt32(&w.parallelism))
 	defer parallel.Close()
 	w.mu.Lock()
 	w.parallel = parallel
