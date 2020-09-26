@@ -59,10 +59,14 @@ func (l *Parallel) Do(f func(context.Context)) error {
 		return err
 	}
 
+	l.mu.Lock()
+	doner := l.doner
+	l.mu.Unlock()
+
 	go func(doner chan struct{}) {
 		defer l.done(doner)
 		f(l.ctx)
-	}(l.doner)
+	}(doner)
 
 	return nil
 }
