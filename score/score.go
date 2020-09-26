@@ -62,6 +62,8 @@ func (s *Score) Set(tag ScoreTag, mag int64) {
 }
 
 func (s *Score) Add(tag ScoreTag) {
+	defer func() { recover() }()
+
 	if atomic.CompareAndSwapUint32(&s.closed, 0, 0) {
 		s.queue <- tag
 		atomic.AddInt32(&s.count, 1)
