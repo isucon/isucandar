@@ -137,3 +137,10 @@ func (s *Errors) All() []error {
 
 	return errors
 }
+
+func (s *Errors) Reset() {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	s.errors = []error{}
+}

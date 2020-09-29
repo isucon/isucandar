@@ -123,3 +123,10 @@ func (s *Score) Total() int64 {
 	s.Done()
 	return s.Sum()
 }
+
+func (s *Score) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.total = make(sumTable)
+}
