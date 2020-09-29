@@ -80,7 +80,7 @@ func (e *Error) FormatError(p xerrors.Printer) error { // implements xerrors.For
 }
 
 func Is(err, target error) bool {
-	return xerrors.Is(err, target) || errors.Is(err, target)
+	return err == target || xerrors.Is(err, target) || errors.Is(err, target)
 }
 
 func As(err error, target interface{}) bool {
