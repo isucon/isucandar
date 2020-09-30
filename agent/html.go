@@ -184,7 +184,7 @@ func (a *Agent) getResource(ctx context.Context, base *url.URL, ref string, init
 	res.Request = hreq
 
 	hres, err := a.Do(ctx, hreq)
-	if err != nil {
+	if err != nil && err != io.EOF {
 		res.Error = err
 		return
 	}
