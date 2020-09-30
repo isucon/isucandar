@@ -21,6 +21,8 @@ func newCompressHTTPServer() *httptest.Server {
 	r.GET("/br", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "br")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		bw := brotli.NewWriter(w)
 		defer bw.Close()
@@ -29,6 +31,8 @@ func newCompressHTTPServer() *httptest.Server {
 	r.GET("/broken-br", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "br")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		io.WriteString(w, "test it")
 	})
@@ -38,12 +42,16 @@ func newCompressHTTPServer() *httptest.Server {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		io.WriteString(gw, "test it")
 	})
 	r.GET("/broken-gzip", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		io.WriteString(w, "test it")
 	})
@@ -58,12 +66,16 @@ func newCompressHTTPServer() *httptest.Server {
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "deflate")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		io.WriteString(fw, "test it")
 	})
 	r.GET("/broken-deflate", func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Set("Content-Encoding", "deflate")
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Transfer-Encoding", "chunked")
 		w.WriteHeader(200)
 		io.WriteString(w, "test it")
 	})

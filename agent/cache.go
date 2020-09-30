@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"sort"
@@ -118,7 +119,7 @@ func newCache(res *http.Response, cachedBody []byte) (*Cache, error) {
 		cache.body = cachedBody
 	} else {
 		cache.body, err = ioutil.ReadAll(res.Body)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			return nil, err
 		}
 		res.Body.Close()
