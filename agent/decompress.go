@@ -18,7 +18,7 @@ func decompress(res *http.Response) (*http.Response, error) {
 	case "br":
 		body, err = brotli.NewReader(res.Body, &brotli.ReaderConfig{})
 	case "gzip":
-		body, err = gzip.NewReader(res.Body)
+		body = &gzipReader{body: res.Body}
 	case "deflate":
 		body = flate.NewReader(res.Body)
 	default:
@@ -35,4 +35,30 @@ func decompress(res *http.Response) (*http.Response, error) {
 	res.Body = body
 
 	return res, nil
+}
+
+type gzipReader struct {
+	body io.ReadCloser
+	zr   *gzip.Reader
+	zerr error
+}
+
+func (gz *gzipReader) Read(p []byte) (n int, err error) {
+	if gz.zr == nil {
+		if gz.zerr == nil {
+			gz.zr, gz.zerr = gzip.NewReader(gz.body)
+		}
+		if gz.zerr != nil {
+			return 0, gz.zerr
+		}
+	}
+
+	if err != nil {
+		return 0, err
+	}
+	return gz.zr.Read(p)
+}
+
+func (gz *gzipReader) Close() error {
+	return gz.body.Close()
 }
