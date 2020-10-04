@@ -163,7 +163,12 @@ func TestGzipResponse(t *testing.T) {
 		t.Fatalf("%s missmatch %s", body, "test it")
 	}
 
-	_, _, err = get(agent, "/broken-gzip")
+	_, res, err = get(agent, "/broken-gzip")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body, err = ioutil.ReadAll(res.Body)
 	if err == nil {
 		t.Fatalf("Not raised error with broken encoding")
 	}
