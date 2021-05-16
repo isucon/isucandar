@@ -27,7 +27,7 @@ type Benchmark struct {
 	loadSteps       []BenchmarkStepFunc
 	validationSteps []BenchmarkStepFunc
 
-	prepateTimeout time.Duration
+	prepareTimeout time.Duration
 	loadTimeout    time.Duration
 	ignoreCodes    []failure.Code
 	errorHooks     []BenchmarkErrorHook
@@ -39,7 +39,7 @@ func NewBenchmark(opts ...BenchmarkOption) (*Benchmark, error) {
 		prepareSteps:    []BenchmarkStepFunc{},
 		loadSteps:       []BenchmarkStepFunc{},
 		validationSteps: []BenchmarkStepFunc{},
-		prepateTimeout:  time.Duration(0),
+		prepareTimeout:  time.Duration(0),
 		loadTimeout:     time.Duration(0),
 		ignoreCodes:     []failure.Code{},
 		errorHooks:      []BenchmarkErrorHook{},
@@ -86,8 +86,8 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 			prepareCancel context.CancelFunc
 		)
 
-		if b.prepateTimeout > 0 {
-			prepareCtx, prepareCancel = context.WithTimeout(ctx, b.prepateTimeout)
+		if b.prepareTimeout > 0 {
+			prepareCtx, prepareCancel = context.WithTimeout(ctx, b.prepareTimeout)
 		} else {
 			prepareCtx, prepareCancel = context.WithCancel(ctx)
 		}

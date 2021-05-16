@@ -10,7 +10,7 @@ func WithPrepareTimeout(d time.Duration) BenchmarkOption {
 	return func(b *Benchmark) error {
 		b.mu.Lock()
 		defer b.mu.Unlock()
-		b.prepateTimeout = d
+		b.prepareTimeout = d
 		return nil
 	}
 }
