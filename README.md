@@ -223,7 +223,7 @@ worker, err := NewWorker(f, WithLoopCount(10))
 worker.SetLoopCount(20)
 
 // Worker は作成時または後から並列数を変更できます。
-worker, err := NewWorkder(f, WithMaxParallelism(10)/* あるいは WithUnlimitedParallelism() */)
+worker, err := NewWorker(f, WithMaxParallelism(10)/* あるいは WithUnlimitedParallelism() */)
 worker.SetParallelism(20)
 worker.AddParallelism(20)
 // 並列数の変更は実行中であっても反映されます。
