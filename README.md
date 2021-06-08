@@ -76,7 +76,7 @@ isucandar 独自のエラーや、それらのコレクションを扱うパッ�
 // Code はエラーコードそのものを指す interface です。
 // ErrorCode() string と Error() string が実装されていれば満たすことができます。
 // 基本的には StringCode を介して定義するのがかんたんです。
-var StandarErrorCode failure.StringCode = "standard"
+var StandardErrorCode failure.StringCode = "standard"
 
 //// Error
 // Error はエラーコード、コールスタックの保持などを行う error 互換の構造体です。
