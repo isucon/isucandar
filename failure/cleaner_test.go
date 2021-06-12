@@ -24,12 +24,13 @@ func TestBacktraceCleaner(t *testing.T) {
 		return strings.HasSuffix(b.Function, "TestBacktraceCleaner")
 	})
 
+	var code StringCode = "cleaner"
 	var f func(int) error
 	f = func(n int) error {
 		if n > 0 {
 			return f(n - 1)
 		}
-		return NewError(UnknownErrorCode, fmt.Errorf("invalid"))
+		return NewError(code, fmt.Errorf("invalid"))
 	}
 
 	err := f(0)

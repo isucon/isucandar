@@ -20,11 +20,11 @@ type Error struct {
 	frames []xerrors.Frame
 }
 
-func NewError(code Code, err error) *Error {
-	// var wrapped *Error
-	// if ok := As(err, &wrapped); ok {
-	// 	return NewError(code, wrapped.err)
-	// }
+func NewError(code Code, err error) error {
+	// Skip already wrapped
+	if IsCode(err, code) {
+		return err
+	}
 
 	var nerr net.Error
 	if As(err, &nerr) {

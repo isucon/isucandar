@@ -27,6 +27,12 @@ func TestErrors(t *testing.T) {
 	if len(errors) != 100 {
 		t.Errorf("missmatch errors count: %d", len(errors))
 	}
+
+	set.Reset()
+	moreErrors := set.All()
+	if len(moreErrors) != 0 {
+		t.Errorf("missmatch errors count: %d", len(moreErrors))
+	}
 }
 
 func TestErrorsClosed(t *testing.T) {

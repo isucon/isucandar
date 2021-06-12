@@ -26,7 +26,11 @@ func (b *BenchmarkStep) AddError(err error) {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
 
-	b.result.Errors.Add(failure.NewError(b.errorCode, err))
+	if b.errorCode != nil {
+		b.result.Errors.Add(failure.NewError(b.errorCode, err))
+	} else {
+		b.result.Errors.Add(err)
+	}
 }
 
 func (b *BenchmarkStep) AddScore(tag score.ScoreTag) {

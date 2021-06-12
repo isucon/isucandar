@@ -13,12 +13,18 @@ func TestScoreWithDone(t *testing.T) {
 	for i := 0; i < 1000; i++ {
 		score.Add("foo")
 		score.Add("bar")
+		score.Add("baz")
 	}
 
 	score.Done()
 
 	if score.Total() != 3000 {
 		t.Fatalf("Expected 3000 but got %d", score.Total())
+	}
+
+	score.Reset()
+	if score.Total() != 0 {
+		t.Fatalf("Expected 0 but got %d", score.Total())
 	}
 }
 

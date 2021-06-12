@@ -12,6 +12,7 @@ import (
 const (
 	errApplication StringCode = "application"
 	errTemporary   StringCode = "temporary"
+	errTest        StringCode = "test"
 )
 
 func TestError(t *testing.T) {
@@ -108,6 +109,14 @@ func TestErrorWrap(t *testing.T) {
 	}
 	codes = GetErrorCodes(temporaryError)
 	expectCodes = []string{"application", TemporaryErrorCode.ErrorCode()}
+	if !reflect.DeepEqual(codes, expectCodes) {
+		t.Fatalf("Error codes is invalid:\n  %v\n  %v", codes, expectCodes)
+	}
+
+	err := NewError(errTest, fmt.Errorf("error"))
+	nilError := NewError(errTest, err)
+	codes = GetErrorCodes(nilError)
+	expectCodes = []string{"test"}
 	if !reflect.DeepEqual(codes, expectCodes) {
 		t.Fatalf("Error codes is invalid:\n  %v\n  %v", codes, expectCodes)
 	}
