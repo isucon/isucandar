@@ -27,6 +27,7 @@ type Benchmark struct {
 	loadSteps       []BenchmarkStepFunc
 	validationSteps []BenchmarkStepFunc
 
+	panicRecover   bool
 	prepareTimeout time.Duration
 	loadTimeout    time.Duration
 	ignoreCodes    []failure.Code
@@ -39,6 +40,7 @@ func NewBenchmark(opts ...BenchmarkOption) (*Benchmark, error) {
 		prepareSteps:    []BenchmarkStepFunc{},
 		loadSteps:       []BenchmarkStepFunc{},
 		validationSteps: []BenchmarkStepFunc{},
+		panicRecover:    true,
 		prepareTimeout:  time.Duration(0),
 		loadTimeout:     time.Duration(0),
 		ignoreCodes:     []failure.Code{},
@@ -93,7 +95,7 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 		}
 		defer prepareCancel()
 
-		if err := panicWrapper(func() error { return prepare(prepareCtx, step) }); err != nil {
+		if err := panicWrapper(b.panicRecover, func() error { return prepare(prepareCtx, step) }); err != nil {
 			for _, ignore := range b.ignoreCodes {
 				if failure.IsCode(err, ignore) {
 					goto Result
@@ -121,7 +123,7 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 	for _, load := range b.loadSteps {
 		func(f BenchmarkStepFunc) {
 			loadParallel.Do(func(c context.Context) {
-				if err := panicWrapper(func() error { return f(c, step) }); err != nil {
+				if err := panicWrapper(b.panicRecover, func() error { return f(c, step) }); err != nil {
 					for _, ignore := range b.ignoreCodes {
 						if failure.IsCode(err, ignore) {
 							return
@@ -143,7 +145,7 @@ func (b *Benchmark) Start(parent context.Context) *BenchmarkResult {
 
 	step.setErrorCode(ErrValidation)
 	for _, validation := range b.validationSteps {
-		if err := panicWrapper(func() error { return validation(ctx, step) }); err != nil {
+		if err := panicWrapper(b.panicRecover, func() error { return validation(ctx, step) }); err != nil {
 			for _, ignore := range b.ignoreCodes {
 				if failure.IsCode(err, ignore) {
 					goto Result
@@ -197,7 +199,11 @@ func (b *Benchmark) IgnoreErrorCode(code failure.Code) {
 	b.ignoreCodes = append(b.ignoreCodes, code)
 }
 
-func panicWrapper(f func() error) (err error) {
+func panicWrapper(on bool, f func() error) (err error) {
+	if !on {
+		return f()
+	}
+
 	defer func() {
 		re := recover()
 		if re == nil {

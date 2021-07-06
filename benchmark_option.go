@@ -23,3 +23,10 @@ func WithLoadTimeout(d time.Duration) BenchmarkOption {
 		return nil
 	}
 }
+
+func WithoutPanicRecover() BenchmarkOption {
+	return func(b *Benchmark) error {
+		b.panicRecover = false
+		return nil
+	}
+}

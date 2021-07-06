@@ -367,3 +367,28 @@ func TestBenchmarkValidationIgnoredError(t *testing.T) {
 		t.Fatal(result.Errors.All())
 	}
 }
+
+func TestBenchmarWithoutPanicRecover(t *testing.T) {
+	ctx := context.TODO()
+	b := newBenchmark(WithoutPanicRecover())
+
+	panicErr := errors.New("panic")
+	b.Validation(func(_ context.Context, _ *BenchmarkStep) error {
+		panic(panicErr)
+	})
+
+	func() {
+		defer func() {
+			err := recover()
+			if err == nil {
+				t.Fatalf("not thrown panic")
+			}
+
+			if err != panicErr {
+				t.Fatalf("invalid panic: %+v", err)
+			}
+		}()
+
+		b.Start(ctx)
+	}()
+}
